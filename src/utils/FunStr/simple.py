@@ -51,10 +51,14 @@ class Node:
     @property
     def has_next(self):
         return self.next_node is not None
+    
+    def convert_to_tuple(self):
+        self.possible_values = tuple(self.possible_values)
 
 class Sentence:
     def __init__(self):
         self.head = Node(0)
+        self.len = 0
 
     def print_lst(self):
         cur = self.head
@@ -66,10 +70,14 @@ class Sentence:
                 break
 
     def append(self, sentence_part):
-        last_node = self.get(sentence_part-1)
+        last_node = self.get(self.len)
         if last_node.has_next:
             raise Exception("It shouldn't have one")
         last_node.next_node = Node(sentence_part)
+        self.len += 1
+        if sentence_part != self.len:
+            raise Exception()
+        #TODO fix this logic.
 
     def get(self, sentence_part):
         node = self.head
@@ -90,7 +98,7 @@ class Parser:
         self.lookahead = next(self.iter_express)
 
     def parse(self):
-        self.open_param()
+        self.simple_char()
 
 
     def consume(self, name):
@@ -111,34 +119,39 @@ class Parser:
         pass
 
     def simple_char(self):
-        # self.open_param()
-        # if self.lookahead.value not in Lexer.symbols:
-        #     self.sentence.get(self.current_sentence_pos).possible_values.append((self.lookahead.value, ))
-        #     self.current_sentence_pos += 1
-        #     self.sentence.append(self.current_sentence_pos)
-        #     self.consume(CHAR)
-        # if self.lookahead.name == BREAK:
-        #     return
-        # self.escape()
-        pass
+        if self.lookahead.value not in self.lexer.symbols:
+            phrase = self.lookahead.value
+            self.consume(CHAR)
+            while self.lookahead.value not in self.lexer.symbols:
+                phrase += self.lookahead.value
+                self.consume(CHAR)
+            self.sentence.append(self.current_sentence_pos)
+            self.sentence.get(self.current_sentence_pos).possible_values.append((phrase, 0, {None}))
+            self.sentence.get(self.current_sentence_pos).convert_to_tuple()
+            self.current_sentence_pos += 1
+            self.simple_char() # TODO chnage if something before
+        self.open_param()
 
     def open_param(self):
-        self.alternation()
+        self.qstn()
         if self.lookahead.name == PARAM_OPEN:
             if self.sentence.get(self.current_sentence_pos) is None:
                 self.sentence.append(self.current_sentence_pos)
             self.consume(PARAM_OPEN)
             # TODO if alternation raise error
-            self.alternation()
+            self.qstn()
             if self.lookahead.name is not PARAM_CLOSE:
                 raise Exception()
             self.consume(PARAM_CLOSE)
+            self.sentence.get(self.current_sentence_pos).convert_to_tuple()
             self.current_sentence_pos += 1
-            self.open_param() # TODO change if something is before
+            self.simple_char()
             
             
-    def alternation(self):
-        self.variable_name(0)
+    def alternation(self, grouped=False):
+        if grouped:
+            return self.variable_name(grouped=grouped)
+        self.variable_name(grouped=grouped)
         if self.lookahead.name == ALT:
             self.consume(ALT)
             self.alternation()
@@ -146,22 +159,29 @@ class Parser:
     def preceding(self, var):
         if self.lookahead.name == PRECEDING:
             self.consume(PRECEDING)
-            self.variable_name(1, var)
+            self.variable_name(preceding_code=1, previous_var=var)
         elif self.lookahead.name == NOT_PRECEDING:
             self.consume(NOT_PRECEDING)
-            self.variable_name(-1, var)
+            self.variable_name(preceding_code=-1, previous_var=var)
         
-    def open_group(self):
-        # self.variable_name(preceding_code)
-        # if self.lookahead.name == GROUP_OPEN:
-        #     while self.lookahead.name != GROUP_CLOSE:
-        #         self.consume(GROUP_OPEN)
-        #         self.sentence.get(self.current_sentence_pos).possible_values.append([])
-        #         self.variable_name(preceding_code, group_number)
-        #     group_number += 1
-        pass
+    def open_group(self, grouped=False):
+        self.alternation(grouped=grouped)
+        if self.lookahead.name == GROUP_OPEN:
+            
+            group_values = set()
+            while self.lookahead.name != GROUP_CLOSE:
+                self.consume(self.lookahead.name)
+                group_values.add(self.alternation(grouped=True))
+
+            if not group_values:
+                raise Exception("PARSE ERROR")
+            
+            self.consume(GROUP_CLOSE)
+            self.preceding(group_values)
+            self.open_group(grouped=False)
+
         
-    def variable_name(self, preceding_code, previous_var=None):
+    def variable_name(self, preceding_code=0, grouped=False, previous_var=None):
         if self.lookahead.name == CHAR:
             var_name = ""
             while self.lookahead.name == CHAR:
@@ -170,29 +190,30 @@ class Parser:
                     raise Exception("PARSE ERROR")
                 var_name += current
                 self.consume(CHAR)
-            if preceding_code != 0:
-                self.sentence.get(self.current_sentence_pos).possible_values.append((var_name, preceding_code, previous_var))
-                return
             if self.lookahead.name == PRECEDING or self.lookahead.name == NOT_PRECEDING:
                 self.preceding(var_name)
+            elif grouped:
+                return var_name
             else:
-                self.sentence.get(self.current_sentence_pos).possible_values.append((var_name, preceding_code, ""))
+                if isinstance(previous_var, str) or previous_var is None:
+                    previous_var = {previous_var}
+                self.sentence.get(self.current_sentence_pos).possible_values.append((var_name, preceding_code, previous_var))
 
-    def qstn(self):
-        # self.alternative()
-        # if self.lookahead == QSTN:
-        #     self.consume(QSTN)
-        #     if group_number != -1:
-        #         self.sentence.get(self.current_sentence_pos).possible_values[group_number].append(("", preceding_code))
-        #     else:
-        #         self.sentence.get(self.current_sentence_pos).possible_values.append(("", preceding_code))
-        pass
+    def qstn(self, has_qstn=False):
+        self.open_group(grouped=False)
+        if self.lookahead.name == QSTN:
+            if has_qstn:
+                raise Exception("Parising error")
+            self.consume(QSTN)
+            self.sentence.get(self.current_sentence_pos).possible_values.append(("", 0, {None}))
+            self.qstn(has_qstn=True)
 
 
 
 
 if __name__ == "__main__":
-    lex = Lexer("{v1|v2|v3}{v2>v4|v1~v5}")
+    #"{v1|v2|v3|v9}{(v2|v3|v9)>v4|v1~v5}{WOW}"
+    lex = Lexer("{v1|v2|v3|v9|?}{(v2|v3|v9)>v4|?|v1~v5}{WOW}sdd")
     parser = Parser(lex)
     parser.parse()
     parser.sentence.print_lst()
