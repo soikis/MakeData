@@ -1,0 +1,4 @@
+.vscode*
+lorem-ipsum-generator-env
+**/old
+__pycache__
