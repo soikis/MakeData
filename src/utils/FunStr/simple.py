@@ -154,6 +154,8 @@ class Parser:
         self.variable_name(grouped=grouped)
         if self.lookahead.name == ALT:
             self.consume(ALT)
+            if self.lookahead.name == ALT:
+                raise Exception("parse error")
             self.alternation()
 
     def preceding(self, var):
@@ -213,7 +215,7 @@ class Parser:
 
 if __name__ == "__main__":
     #"{v1|v2|v3|v9}{(v2|v3|v9)>v4|v1~v5}{WOW}"
-    lex = Lexer("{v1|v2|v3|v9|?}{(v2|v3|v9)>v4|?|v1~v5}{WOW}sdd")
+    lex = Lexer("{v1|v2|v3|?|v9} word {(v2|v3|v9)>v4|?|v1~v5} poop {WOW}sdd")
     parser = Parser(lex)
     parser.parse()
     parser.sentence.print_lst()
