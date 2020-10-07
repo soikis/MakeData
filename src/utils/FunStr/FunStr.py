@@ -1,11 +1,3 @@
-from re import findall, compile as recompile
-
-PARAMETER_PATTERN  = recompile(r"\{([\w\d\-]+)[^\s\{\}]*\}")
-
-def parameters_list(funString):
-    return findall(PARAMETER_PATTERN, funString)
-
-
 PARAM_OPEN = "PARAM_OPEN"
 PARAM_CLOSE = "PARAM_CLOSE"
 GROUP_OPEN = "GROUP_OPEN"
@@ -42,7 +34,7 @@ class Lexer:
             else:
                 yield Token(CHAR, c)
 
-class Node:
+class State:
     def __init__(self, sentence_part):
         self.sentence_part = sentence_part
         self.possible_values = []
@@ -57,7 +49,7 @@ class Node:
 
 class Sentence:
     def __init__(self):
-        self.head = Node(0)
+        self.head = State(0)
         self.len = 0
 
     def print_lst(self):
@@ -73,7 +65,7 @@ class Sentence:
         last_node = self.get(self.len)
         if last_node.has_next:
             raise Exception("It shouldn't have one")
-        last_node.next_node = Node(sentence_part)
+        last_node.next_node = State(sentence_part)
         self.len += 1
         if sentence_part != self.len:
             raise Exception()
@@ -90,14 +82,14 @@ class Sentence:
 
 class Parser:
 
-    def __init__(self, lexer):
-        self.lexer = lexer
+    def __init__(self):
         self.sentence = Sentence()
         self.current_sentence_pos = 0
+
+    def parse(self, pattern):
+        self.lexer = Lexer(pattern)
         self.iter_express = self.lexer.get_token()
         self.lookahead = next(self.iter_express)
-
-    def parse(self):
         self.simple_char()
 
 
@@ -108,32 +100,29 @@ class Parser:
             except StopIteration:
                 self.lookahead = Token(BREAK, BREAK_CHAR)
         
-    
-    def escape(self):
-        # self.simple_char()
-        # if self.lookahead.name == ESCAPE:
-        #     self.consume(ESCAPE)
-        #     self.lookahead.name = CHAR
-        #     self.consume(CHAR)
-        #     self.escape()
-        pass
 
     def simple_char(self):
-        if self.lookahead.value not in self.lexer.symbols:
+        if self.lookahead.name == ESCAPE:
+                    self.consume(ESCAPE)
+                    self.lookahead.name = CHAR
+                    self.simple_char()
+        if self.lookahead.name not in self.lexer.symbols.values():
             phrase = self.lookahead.value
-            self.consume(CHAR)
-            while self.lookahead.value not in self.lexer.symbols:
+            while self.lookahead.name not in self.lexer.symbols.values():
+                self.consume(CHAR)
+                if self.lookahead.name == ESCAPE:
+                    self.consume(ESCAPE)
+                    self.lookahead.name = CHAR
                 phrase += self.lookahead.value
                 self.consume(CHAR)
             self.sentence.append(self.current_sentence_pos)
             self.sentence.get(self.current_sentence_pos).possible_values.append((phrase, 0, {None}))
             self.sentence.get(self.current_sentence_pos).convert_to_tuple()
             self.current_sentence_pos += 1
-            self.simple_char() # TODO chnage if something before
+            self.simple_char()
         self.open_param()
 
     def open_param(self):
-        self.qstn()
         if self.lookahead.name == PARAM_OPEN:
             if self.sentence.get(self.current_sentence_pos) is None:
                 self.sentence.append(self.current_sentence_pos)
@@ -146,6 +135,7 @@ class Parser:
             self.sentence.get(self.current_sentence_pos).convert_to_tuple()
             self.current_sentence_pos += 1
             self.simple_char()
+        self.qstn()
             
             
     def alternation(self, grouped=False):
@@ -167,7 +157,6 @@ class Parser:
             self.variable_name(preceding_code=-1, previous_var=var)
         
     def open_group(self, grouped=False):
-        self.alternation(grouped=grouped)
         if self.lookahead.name == GROUP_OPEN:
             
             group_values = set()
@@ -178,17 +167,22 @@ class Parser:
             if not group_values:
                 raise Exception("PARSE ERROR")
             
+            
             self.consume(GROUP_CLOSE)
             self.preceding(group_values)
             self.open_group(grouped=False)
+        self.alternation(grouped=grouped)
 
-        
+    def valid_partial_format(self):
+        character = self.lookahead.value
+        return character.isalpha() or character.isnumeric() or character in "[]"
+
     def variable_name(self, preceding_code=0, grouped=False, previous_var=None):
         if self.lookahead.name == CHAR:
             var_name = ""
             while self.lookahead.name == CHAR:
                 current = self.lookahead.value
-                if not (var_name + current).isidentifier():
+                if not self.valid_partial_format():
                     raise Exception("PARSE ERROR")
                 var_name += current
                 self.consume(CHAR)
@@ -210,12 +204,25 @@ class Parser:
             self.sentence.get(self.current_sentence_pos).possible_values.append(("", 0, {None}))
             self.qstn(has_qstn=True)
 
+class GenerationNode:
 
+    def __init__(self):
+        pass
+class GenerationGraph:
+
+    def __init__(self):
+        self.parser = None
+        self.has_data = False
+
+    def compile(self, pattern):
+        self.parser = Parser()
+        self.parser.parse(pattern)
+        self.sentence = self.parser.sentence
+            
 
 
 if __name__ == "__main__":
-    #"{v1|v2|v3|v9}{(v2|v3|v9)>v4|v1~v5}{WOW}"
-    lex = Lexer("{v1|v2|v3|?|v9} word {(v2|v3|v9)>v4|?|v1~v5} poop {WOW}sdd")
-    parser = Parser(lex)
-    parser.parse()
+    #""
+    parser = Parser()
+    parser.parse("{v1|v2|v3|?|v9}{(v2|v3|v9)>v4|?|v1~v5}\?\{{v1>WOW}")
     parser.sentence.print_lst()
