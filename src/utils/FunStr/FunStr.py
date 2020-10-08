@@ -1,3 +1,5 @@
+import random
+
 PARAM_OPEN = "PARAM_OPEN"
 PARAM_CLOSE = "PARAM_CLOSE"
 GROUP_OPEN = "GROUP_OPEN"
@@ -52,14 +54,16 @@ class Sentence:
         self.head = State(0)
         self.len = 0
 
-    def print_lst(self):
+    def make_list(self):
+        sentence = []
         cur = self.head
         while cur.possible_values:
-            print(cur.possible_values)
+            sentence.append(cur.possible_values)
             if cur.has_next:
                 cur = cur.next_node
             else:
                 break
+        return sentence
 
     def append(self, sentence_part):
         last_node = self.get(self.len)
@@ -107,16 +111,15 @@ class Parser:
                     self.lookahead.name = CHAR
                     self.simple_char()
         if self.lookahead.name not in self.lexer.symbols.values():
-            phrase = self.lookahead.value
+            phrase = ""
             while self.lookahead.name not in self.lexer.symbols.values():
-                self.consume(CHAR)
                 if self.lookahead.name == ESCAPE:
                     self.consume(ESCAPE)
                     self.lookahead.name = CHAR
                 phrase += self.lookahead.value
                 self.consume(CHAR)
             self.sentence.append(self.current_sentence_pos)
-            self.sentence.get(self.current_sentence_pos).possible_values.append((phrase, 0, {None}))
+            self.sentence.get(self.current_sentence_pos).possible_values.append((phrase, 0, {None}, 0))
             self.sentence.get(self.current_sentence_pos).convert_to_tuple()
             self.current_sentence_pos += 1
             self.simple_char()
@@ -175,7 +178,7 @@ class Parser:
 
     def valid_partial_format(self):
         character = self.lookahead.value
-        return character.isalpha() or character.isnumeric() or character in "[]"
+        return character.isalpha() or character.isnumeric() or character in "_[]"
 
     def variable_name(self, preceding_code=0, grouped=False, previous_var=None):
         if self.lookahead.name == CHAR:
@@ -193,7 +196,7 @@ class Parser:
             else:
                 if isinstance(previous_var, str) or previous_var is None:
                     previous_var = {previous_var}
-                self.sentence.get(self.current_sentence_pos).possible_values.append((var_name, preceding_code, previous_var))
+                self.sentence.get(self.current_sentence_pos).possible_values.append((var_name, preceding_code, previous_var, 1))
 
     def qstn(self, has_qstn=False):
         self.open_group(grouped=False)
@@ -201,28 +204,56 @@ class Parser:
             if has_qstn:
                 raise Exception("Parising error")
             self.consume(QSTN)
-            self.sentence.get(self.current_sentence_pos).possible_values.append(("", 0, {None}))
+            self.sentence.get(self.current_sentence_pos).possible_values.append(("", 0, {None}, 1))
             self.qstn(has_qstn=True)
 
-class GenerationNode:
 
-    def __init__(self):
-        pass
-class GenerationGraph:
+class FunStr:
 
-    def __init__(self):
-        self.parser = None
-        self.has_data = False
+    def __init__(self, pattern=None):
+        self.parser = Parser()
+        self.compiled = False
+        if pattern is not None:
+            self.compile(pattern)
 
     def compile(self, pattern):
-        self.parser = Parser()
         self.parser.parse(pattern)
-        self.sentence = self.parser.sentence
+        self.sentence = self.parser.sentence.make_list()
+        self.compiled = True
+
+    def generate(self):
+        formatting = []
+        prev_choice = random.choice(self.sentence[0])
+        formatting.append(prev_choice)
+        for level in self.sentence[1:]:
+            if level[0][3] == 1:
+                level_options = []
+                for option in level:
+                    if option[1] == 1 and prev_choice[0] in option[2]:
+                        level_options.append(option)
+                    elif option[1] == -1 and prev_choice[0] not in option[2]:
+                        level_options.append(option)
+                    elif option[1] == 0:
+                        level_options.append(option)
+                if level_options:
+                    prev_choice = random.choice(level_options)
+                else:
+                    continue
+                formatting.append(prev_choice)
+            elif level[0][3] == 0:
+                formatting.append(level[0])
+            else:
+                raise Exception("NO")
+            
+        return "".join("{" + param[0] + "}" if param[3] == 1 else param[0] for param in formatting if param[0] != "")
+
+
             
 
 
 if __name__ == "__main__":
     #""
     parser = Parser()
-    parser.parse("{v1|v2|v3|?|v9}{(v2|v3|v9)>v4|?|v1~v5}\?\{{v1>WOW}")
-    parser.sentence.print_lst()
+    parser.parse("{v1|v2|v3|?|v9}{(v2|v3|v9)>v4|?|v1~v5}{v1>WOW}")
+    print (FunStr("{v1|v2|v3|?|v9}{(v2|v3|v9)>v4|?|v1~v5}{v1>WOW}").generate())
+    # parser.sentence.print_lst()
