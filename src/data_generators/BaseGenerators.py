@@ -6,7 +6,7 @@ from numpy.random import default_rng
 from .GeneratorDecorators import DataGenerator
 from collections import Counter
 from .GeneratorExceptions import FormatError, EmptySourceError, NoDefaultFormatError, FormatNotFoundError
-from utils.FunStr.funcs import parameters_list
+from utils.FunStr.FunStr import parameters_list
 
 
 class GeneratorObject():

@@ -1,3 +1,11 @@
+from re import findall, compile as recompile
+
+PARAMETER_PATTERN  = recompile(r"\{([\w\d\-]+)[^\s\{\}]*\}")
+
+def parameters_list(funString):
+    return findall(PARAMETER_PATTERN, funString)
+
+
 import random
 
 PARAM_OPEN = "PARAM_OPEN"
