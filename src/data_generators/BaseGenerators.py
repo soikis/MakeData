@@ -3,7 +3,7 @@ from os.path import join as syspath_join
 from json import load as json_load
 from inspect import isfunction
 from numpy.random import default_rng
-from .GeneratorDecorators import DataGenerator
+from .GeneratorDecorators import GeneratingFunction
 from collections import Counter
 from .GeneratorExceptions import FormatError, EmptySourceError, NoDefaultFormatError, FormatNotFoundError
 from utils.FunStr.FunStr import parameters_list
@@ -24,7 +24,7 @@ class GeneratorObject():
 
         Parameters
         ----------
-        seed : str, optional
+        seed : int or float or str, optional
             The random seed used to seed the ``random_generator`` of a ``GeneratorObject``.
         name : str, optional
             The name of a ``GeneratorObject``
@@ -32,7 +32,7 @@ class GeneratorObject():
         Attributes
         ----------
         generators_counter : collections.Counter
-            A counter used to keep track of how many ``GeneratorObject``'s of each type are created.
+            A counter used to keep track of how many ``GeneratorObject``s of each type are created.
         random_generator : numpy.random.default_rng
             The random generator used by all of the inheriting classes (``numpy.random.default_rng``).
         name : str, optional
@@ -53,6 +53,8 @@ class GeneratorObject():
 
     def __init__(self, seed=None, name=None):
 
+        self.seed = seed
+
         if seed is not None:
             self.random_generator = default_rng(seed)
         else:
@@ -62,8 +64,10 @@ class GeneratorObject():
         my_type = self.__class__.__name__
         if name is not None:
             self.name = name
+            self.generated_name = False
         else:
             self.name = f"{my_type}{GeneratorObject.generators_counter[my_type]}"
+            self.generated_name = True # TODO add to documentation
         GeneratorObject.generators_counter[my_type] += 1
 
     def reset_seed(self, seed):
@@ -95,8 +99,10 @@ class GeneratorObject():
             >>> gen.random_generator._bit_generator
             <numpy.random._pcg64.PCG64 object at 0x0000023CC54EAEB0>
         """
+        self.seed = seed
         self.random_generator = default_rng(seed)
 
+    @GeneratingFunction
     def __call__(self, k, *args, **kwargs):
         """A helper method to make it possible to generate data straight from the object.
             
@@ -119,7 +125,7 @@ class GeneratorObject():
             
             See Also
             --------
-            GeneratorDecorators.DataGenerator : Convert a result of a function to a list.
+            GeneratorDecorators.GeneratingFunction : Convert a result of a function to a list.
             
             Examples
             --------
@@ -146,7 +152,7 @@ class GeneratorObject():
         """Execute any general logic for ``GeneratorObject`` before calling it's ``_data_generator``.
             
             .. note:: 
-                When implementing this method, wrap it with a @DataGenerator decorator to avoid any unexpected behaviours.
+                When implementing this method, wrap it with a @GeneratingFunction decorator to avoid any unexpected behaviours.
 
             .. warning:: 
                 All children of ``GeneratorObject`` need to implement this method or pass it to the next one.
@@ -207,8 +213,8 @@ class FormattedGenerator(GeneratorObject):
         ----------
         formats : dict
             A dictionary of the available formats for this ``GeneratorObject``.
-            Where 'name_of_format': 'FunStr' or 'format' are the 'key':'value', respectively.
-            Look at the See Also section to understand 'FunStr' for 'value'.
+            Where 'name_of_format': (``FunStr`` or 'format') are the 'key':'value', respectively.
+            Look at the See Also section to understand ``FunStr``s.
             If you use a 'format'  it can be something like a date format e.g. "%d-%m-%Y" (Depending on what you generate ofcourse).
             **Do not set a format manuallly e.g. ``GeneratorObject.formats["name"] = "format"``, it might break the integrity of the ``GeneratorObject``**
             # TODO add a function to add format.
@@ -375,7 +381,7 @@ class FormattedGenerator(GeneratorObject):
         raise NotImplementedError
     
     # TODO Allow for multi-variable replacement by using FunStr
-    @DataGenerator
+    @GeneratingFunction
     def generate_data(self, k, format_name="default", *args, **kwargs):
         """Get the generation format and call generator function.
 
@@ -463,10 +469,10 @@ class FileSourcedGenerator(FormattedGenerator):
 
             generator_name = self.__class__.__name__
             self.source_path = syspath_join("DataSources", f"{generator_name}", f"{self.locale}.json")
+            
+            if self.generated_name:
+                self.name = generator_name + "_" + locale
 
-            current_name = kwargs.get("name", None)
-            if current_name is not None:
-                self.name = generator_name + locale
         elif file_path is not None:
             self.source_path = file_path
         else:
@@ -516,7 +522,7 @@ class FileSourcedGenerator(FormattedGenerator):
         return generated_data
 
     # TODO Allow for multi-variable replacement by using FunStr
-    @DataGenerator
+    @GeneratingFunction
     def generate_data(self, k, format_name="default", *args, **kwargs):
         """Get the generation format and call generator function.
 
@@ -636,7 +642,7 @@ class NumericGenerator(GeneratorObject):
         """numeric data generator"""
         raise NotImplementedError
 
-    @DataGenerator
+    @GeneratingFunction
     def generate_data(self, k, *args, **kwargs):
         """Call the generator function.
 

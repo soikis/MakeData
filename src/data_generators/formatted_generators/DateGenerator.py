@@ -59,7 +59,7 @@ class DateGenerator(FormattedGenerator):
     """
     default_format = r"%d-%m-%Y"
 
-    def __init__(self, start_time, end_time, tzinfo=None, dayfirst=True, yearfirst=False, *args, **kwargs):
+    def __init__(self, start_time, end_time, tzinfo=None, dayfirst=True, yearfirst=False, default_steps="D", *args, **kwargs):
         super().__init__(default_must=True, *args, **kwargs)
 
         timeframe = [start_time, end_time]
@@ -88,7 +88,7 @@ class DateGenerator(FormattedGenerator):
         
         self.timedelta = self.timeframe[1] - self.timeframe[0]
 
-
+        self.default_steps = "D" # TODO add to documentation
     def _convert_to_date(self, time, dayfirst, yearfirst):
         """Convert ``time`` to a ``datetime`` object.
 
@@ -114,11 +114,14 @@ class DateGenerator(FormattedGenerator):
         else:
             raise TypeError(f"Variable 'time' of type {type(time)} is not a supported type.")
     
-    def _data_generator(self, k, format_used=None, tzinfo=None, steps="s", return_datetime=False):
+    def _data_generator(self, k, format_used=None, tzinfo=None, steps="D", return_datetime=False):
         """Generate k dates.
 
             Generate k random dates with the given format or the default one.
 
+            .. warning::
+                    If the generator has a really large range, and you give it a very small ``steps`` value (such as "s" for seconds),
+                    the programm might freeze.
             Parameters
             ----------
             k : int
@@ -141,6 +144,7 @@ class DateGenerator(FormattedGenerator):
             ValueError
                 If ``return_datetime=True`` and ``format_used`` is specified.
         """
+        
         if format_used is not None and return_datetime:
             raise ValueError("If 'return_datetime' is True, 'format_used' can't be specified.")
         
@@ -148,6 +152,7 @@ class DateGenerator(FormattedGenerator):
             format_used = self.default_format
         
         # Generate and choose k dates.
+        
         dates_range = np.arange(self.timeframe[0].isoformat(), self.timeframe[1].isoformat(), dtype=f"datetime64[{steps}]").astype(datetime)
         chosen_dates = self.random_generator.choice(dates_range, size=k)
 

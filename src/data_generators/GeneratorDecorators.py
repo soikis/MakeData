@@ -1,4 +1,4 @@
-def DataGenerator(func):
+def GeneratingFunction(func):
     """Decorator to transform a ``GeneratorObject`` output to a tuple.
         
         .. note::

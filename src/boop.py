@@ -1,21 +1,29 @@
 from data_generators.numeric_generators.IntegerGenerator import IntegerGenerator
-from data_generators.numeric_generators.FloatGenerator import FloatGenerator
-from data_generators.entity_generators.NameGenerator import NameGenerator
+# from data_generators.numeric_generators.FloatGenerator import FloatGenerator
 from data_generators.formatted_generators.DateGenerator import DateGenerator
+from data_generators.formatted_generators.NameGenerator import NameGenerator
 from datetime import datetime
 from dateutil.tz import gettz
-from model_generators.BaseModels import BaseModel
+from models.BaseModels import BaseModel
 
 
 def main():
+    nameGen = NameGenerator(locale="en_INTER", default_format_name="ffl", name="Full Name")
+    ageGen = IntegerGenerator(18, 38, name="Age",seed=2)
+    birthdayGen = DateGenerator("1-1-1990", "31-12-1999", name="Birthday")
+    personModel = BaseModel([nameGen, ageGen, birthdayGen], seed=42, overwrite_seeds=True, name="PersonModel")
+    print(personModel(5))
+    personModel = BaseModel([nameGen, ageGen, birthdayGen], seed=42, overwrite_seeds=True, name="PersonModel")
+    personModel.reset_seeds(2)
+    print(personModel(5))
     # personGen2 = NameGenerator(locale="en_INTER", default_format_name="lmf", seed=42)
     # print(personGen2(5))
     # print(personGen2.formats_templates)
-    intGen1 = FloatGenerator(-7, 10, seed=42)
+    # intGen1 = IntegerGenerator(-1, 5, seed=42)
     # print(intGen1(5))
-    personGen2 = NameGenerator(locale="en_INTER", default_format_name="iffl", seed=8)
-    dateGen1 = DateGenerator("6-10-2020", "8-10-2020", default_format="%Y-%m-%d %H:%M:%S", seed=42)
-    print(dateGen1(5))
+    
+    # dateGen1 = DateGenerator("6-10-2020", "8-10-2020", default_format="%Y-%m-%d %H:%M:%S", seed=42)
+    # print(personGen2(5, format_name="lff"))
 
     # model = BaseModel([intGen1,personGen2,dateGen1], name="please")
 

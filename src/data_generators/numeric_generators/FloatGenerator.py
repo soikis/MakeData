@@ -1,14 +1,38 @@
-# TODO documentation
 from ..BaseGenerators import NumericGenerator
 
 
 class FloatGenerator(NumericGenerator):
+    """Generator to generate k floating point numbers in a given range.
+
+        *args
+                Variable length argument list
+        **kwargs
+            Arbitrary keyword arguments. 
+        
+        
+        See Also
+        --------
+        data_generators.BaseGenerators.NumericGenerator : All the available functionalities derived from ``NumericGenerator``.
+
+        Examples
+        --------
+        Using a ``FloatGenerator`` to generate data:
+        
+        >>> from data_generators.numeric_generators.FloatGenerator import FloatGenerator
+        >>> gen = FloatGenerator(-1, 5, seed=42)
+        >>> gen(5)
+        (3.64373629133578, 1.6332706385123137, 4.151587519468295, 3.1842081743561836, -0.4349359126741028)
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
 
-    # This is not necessary but it might help with readability for some people.
-    def _float_generator(self, k):
-        return self.random_generator.uniform(self.low, self.high, size=k)
-    
     def _data_generator(self, k):
-        return self._float_generator(k)
+        """Generate k floating point numbers.
+
+            Parameters
+            ----------
+            k : int
+                Generate k samples.
+        """
+        return self.random_generator.uniform(self.low, self.high, size=k)
