@@ -11,6 +11,7 @@ def main():
     nameGen = NameGenerator(locale="en_INTER", default_format_name="ffl", name="Full Name")
     ageGen = IntegerGenerator(18, 38, name="Age",seed=2)
     birthdayGen = DateGenerator("1-1-1990", "31-12-1999", name="Birthday")
+    print(birthdayGen(100000, steps="Y"))
     personModel = BaseModel([nameGen, ageGen, birthdayGen], seed=42, overwrite_seeds=True, name="PersonModel")
     print(personModel(5))
     personModel = BaseModel([nameGen, ageGen, birthdayGen], seed=42, overwrite_seeds=True, name="PersonModel")

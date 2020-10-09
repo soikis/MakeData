@@ -5,6 +5,7 @@ import numpy as np
 from dateutil.tz import gettz
 from dateutil.utils import default_tzinfo
 from ..GeneratorExceptions import FormatError
+from dateutil.relativedelta import relativedelta
 
 
 class DateGenerator(FormattedGenerator):
@@ -59,7 +60,7 @@ class DateGenerator(FormattedGenerator):
     """
     default_format = r"%d-%m-%Y"
 
-    def __init__(self, start_time, end_time, tzinfo=None, dayfirst=True, yearfirst=False, default_steps="D", *args, **kwargs):
+    def __init__(self, start_time, end_time, tzinfo=None, dayfirst=True, yearfirst=False, *args, **kwargs):
         super().__init__(default_must=True, *args, **kwargs)
 
         timeframe = [start_time, end_time]
@@ -86,9 +87,9 @@ class DateGenerator(FormattedGenerator):
             raise ValueError(f"'time_range' with values: {self.timeframe} is invalid. First datetime \
                             '{self.timeframe[0]}' can't be bigger than the second datetime '{self.timeframe[1]}'.")
         
-        self.timedelta = self.timeframe[1] - self.timeframe[0]
+        self.time_defference = self.timeframe[1].timestamp() - self.timeframe[0].timestamp()
+        
 
-        self.default_steps = "D" # TODO add to documentation
     def _convert_to_date(self, time, dayfirst, yearfirst):
         """Convert ``time`` to a ``datetime`` object.
 
@@ -119,9 +120,6 @@ class DateGenerator(FormattedGenerator):
 
             Generate k random dates with the given format or the default one.
 
-            .. warning::
-                    If the generator has a really large range, and you give it a very small ``steps`` value (such as "s" for seconds),
-                    the programm might freeze.
             Parameters
             ----------
             k : int
@@ -132,7 +130,7 @@ class DateGenerator(FormattedGenerator):
                 Either a ``datetime.tzinfo`` or a timezone name string.
             steps : str, optional
                 Time resolution to use when generateing dates.
-                years=Y, months=M, weeks=W, days=D, hours=h, minutes=m, seconds=s, milliseconds=ms
+                years=Y, months=M, weeks=W, days=D, hours=h, minutes=m, seconds=s, milliseconds=ms TODO might be to many resolutions
             return_datetime : bool, optional
                 Whether to return a ``datetime`` object or a formatted string.
                 If True, and a ``format_used`` is specified, will raise a ``ValueError``.
@@ -152,10 +150,8 @@ class DateGenerator(FormattedGenerator):
             format_used = self.default_format
         
         # Generate and choose k dates.
+        chosen_dates = (np.datetime64(self.timeframe[0]) + self.random_generator.integers(0, self.time_defference, size=k).astype("timedelta64[s]").astype(f"timedelta64[{steps}]")).astype(datetime)
         
-        dates_range = np.arange(self.timeframe[0].isoformat(), self.timeframe[1].isoformat(), dtype=f"datetime64[{steps}]").astype(datetime)
-        chosen_dates = self.random_generator.choice(dates_range, size=k)
-
         if tzinfo is None and self.tzinfo is not None:
             tzinfo = self.tzinfo
 

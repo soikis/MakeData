@@ -1,6 +1,6 @@
-from ..BaseGenerators import FromJSONGenerator
+from ..BaseGenerators import LocaleFileSourceGenerator
 
-class NameGenerator(FromJSONGenerator):
+class NameGenerator(LocaleFileSourceGenerator):
     """Generator to generate k human names by format.
 
         There are the default formats, but more can be added.
@@ -9,7 +9,7 @@ class NameGenerator(FromJSONGenerator):
         --------
         data_generators.BaseGenerators.FormattedGenerator : All the available functionalities derived from ``FormattedGenerator``.
         data_generators.BaseGenerators.FileSourcedGenerator : All the available functionalities derived from ``FileSourcedGenerator``.
-        data_generators.BaseGenerators.FromJSONGenerator : All the available functionalities derived from ``FromJSONGenerator``.
+        data_generators.BaseGenerators.LocaleFileSourceGenerator : All the available functionalities derived from ``LocaleFileSourceGenerator``.
 
         Examples
         --------
