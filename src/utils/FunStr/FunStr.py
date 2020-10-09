@@ -1,10 +1,11 @@
-# from re import findall, compile as recompile
+from re import finditer, findall, compile as recompile
 
 # PARAMETER_PATTERN  = recompile(r"\{([\w\d\-]+)[^\s\{\}]*\}")
 
 # def parameters_list(funString):
 #     return findall(PARAMETER_PATTERN, funString)
 
+PARAMETERS_TEXT_SPLITTER = recompile(r"\{(?P<param>[^ \\]+)\}|(?P<txt>[^\{\}]+)")
 
 import random
 
@@ -44,176 +45,101 @@ class Lexer:
             else:
                 yield Token(CHAR, c)
 
-class State:
-    def __init__(self, sentence_part):
-        self.sentence_part = sentence_part
-        self.possible_values = []
-        self.next_node = None
-    
-    @property
-    def has_next(self):
-        return self.next_node is not None
-    
-    def convert_to_tuple(self):
-        self.possible_values = tuple(self.possible_values)
-
-class Sentence:
-    def __init__(self):
-        self.head = State(0)
-        self.len = 0
-
-    def make_list(self):
-        sentence = []
-        cur = self.head
-        while cur.possible_values:
-            sentence.append(cur.possible_values)
-            if cur.has_next:
-                cur = cur.next_node
-            else:
-                break
-        return sentence
-
-    def append(self, sentence_part):
-        last_node = self.get(self.len)
-        if last_node.has_next:
-            raise Exception("It shouldn't have one")
-        last_node.next_node = State(sentence_part)
-        self.len += 1
-        if sentence_part != self.len:
-            raise Exception()
-        #TODO fix this logic.
-
-    def get(self, sentence_part):
-        node = self.head
-        curr_part = 0
-        while curr_part < sentence_part:
-            # TODO add check if next_node exists
-            node = node.next_node
-            curr_part += 1
-        return node
-
 class Parser:
 
-    def __init__(self):
-        self.sentence = Sentence()
-        self.current_sentence_pos = 0
+    @staticmethod
+    def consume(lex):
+        try:
+            return next(lex)
+        except StopIteration:
+            return Token(BREAK, BREAK_CHAR)
 
-    def parse(self, pattern):
-        self.lexer = Lexer(pattern)
-        self.iter_express = self.lexer.get_token()
-        self.lookahead = next(self.iter_express)
-        self.simple_char()
+    @staticmethod
+    def parse(pattern):
+        lex = Lexer(pattern).get_token()
+        sentence = []
+        current_char = Parser.consume(lex)
+        while current_char.name != BREAK:
 
+            if current_char.name == PARAM_OPEN:
+                if current_char.name == BREAK:
+                        raise Exception("Parse error")
+                parameter = ""
 
-    def consume(self, name):
-        if self.lookahead.name == name:
-            try:
-                self.lookahead = next(self.iter_express)
-            except StopIteration:
-                self.lookahead = Token(BREAK, BREAK_CHAR)
-        
+                while current_char.name != PARAM_CLOSE:
+                    current_char = Parser.consume(lex)
+                    if current_char.name == PARAM_CLOSE or current_char.name == BREAK:
+                        break
+                    parameter += current_char.value
 
-    def simple_char(self):
-        if self.lookahead.name == ESCAPE:
-                    self.consume(ESCAPE)
-                    self.lookahead.name = CHAR
-                    self.simple_char()
-        if self.lookahead.name not in self.lexer.symbols.values():
-            phrase = ""
-            while self.lookahead.name not in self.lexer.symbols.values():
-                if self.lookahead.name == ESCAPE:
-                    self.consume(ESCAPE)
-                    self.lookahead.name = CHAR
-                phrase += self.lookahead.value
-                self.consume(CHAR)
-            self.sentence.append(self.current_sentence_pos)
-            self.sentence.get(self.current_sentence_pos).possible_values.append((phrase, 0, {None}, 0))
-            self.sentence.get(self.current_sentence_pos).convert_to_tuple()
-            self.current_sentence_pos += 1
-            self.simple_char()
-        self.open_param()
+                sentence.append(Parser.process_parameter(parameter))
+                current_char = Parser.consume(lex)
 
-    def open_param(self):
-        if self.lookahead.name == PARAM_OPEN:
-            if self.sentence.get(self.current_sentence_pos) is None:
-                self.sentence.append(self.current_sentence_pos)
-            self.consume(PARAM_OPEN)
-            # TODO if alternation raise error
-            self.qstn()
-            if self.lookahead.name is not PARAM_CLOSE:
-                raise Exception()
-            self.consume(PARAM_CLOSE)
-            self.sentence.get(self.current_sentence_pos).convert_to_tuple()
-            self.current_sentence_pos += 1
-            self.simple_char()
-        self.qstn()
+            if current_char.name == ESCAPE:
+                current_char = Parser.consume(lex)
+                current_char.name = CHAR
+
+            if current_char.name == CHAR:
+                txt_segment = ""
+                while current_char.name == CHAR:
+                    txt_segment += current_char.value
+                    current_char = Parser.consume(lex)
+                    if current_char.name == ESCAPE:
+                        current_char = Parser.consume(lex)
+                        current_char.name = CHAR
+                sentence.append(txt_segment)
+                
+        return sentence
             
-            
-    def alternation(self, grouped=False):
-        if grouped:
-            return self.variable_name(grouped=grouped)
-        self.variable_name(grouped=grouped)
-        if self.lookahead.name == ALT:
-            self.consume(ALT)
-            if self.lookahead.name == ALT:
-                raise Exception("parse error")
-            self.alternation()
 
-    def preceding(self, var):
-        if self.lookahead.name == PRECEDING:
-            self.consume(PRECEDING)
-            self.variable_name(preceding_code=1, previous_var=var)
-        elif self.lookahead.name == NOT_PRECEDING:
-            self.consume(NOT_PRECEDING)
-            self.variable_name(preceding_code=-1, previous_var=var)
-        
-    def open_group(self, grouped=False):
-        if self.lookahead.name == GROUP_OPEN:
-            
-            group_values = set()
-            while self.lookahead.name != GROUP_CLOSE:
-                self.consume(self.lookahead.name)
-                group_values.add(self.alternation(grouped=True))
+    @staticmethod
+    def process_parameter(parameter_values):
+        params = finditer(r"(?P<vars>\([\w\d\[\]\|\?]+\)|[\w\d\?]+)+(?P<op>[>~\|])*", parameter_values)
 
-            if not group_values:
-                raise Exception("PARSE ERROR")
-            
-            
-            self.consume(GROUP_CLOSE)
-            self.preceding(group_values)
-            self.open_group(grouped=False)
-        self.alternation(grouped=grouped)
+        param_possibilities = []
+        preceding_values = {None}                                            
+        preceding_code = 0
+        for param in params:
+            param_values = param.group("vars")
 
-    def valid_partial_format(self):
-        character = self.lookahead.value
-        return character.isalpha() or character.isnumeric() or character in "_[]"
-
-    def variable_name(self, preceding_code=0, grouped=False, previous_var=None):
-        if self.lookahead.name == CHAR:
-            var_name = ""
-            while self.lookahead.name == CHAR:
-                current = self.lookahead.value
-                if not self.valid_partial_format():
-                    raise Exception("PARSE ERROR")
-                var_name += current
-                self.consume(CHAR)
-            if self.lookahead.name == PRECEDING or self.lookahead.name == NOT_PRECEDING:
-                self.preceding(var_name)
-            elif grouped:
-                return var_name
+            if param_values[0] == "(":
+                if param_values[-1] == ")":
+                    param_values = param_values[1:-1]
+                    param_values = set(param_values.split("|"))
+                    if "" in param_values:
+                        raise Exception("parse error")
+                else:
+                    raise Exception("Parse Exception")
+            elif param_values[-1] in "()":
+                raise Exception("Parse Exception")
             else:
-                if isinstance(previous_var, str) or previous_var is None:
-                    previous_var = {previous_var}
-                self.sentence.get(self.current_sentence_pos).possible_values.append((var_name, preceding_code, previous_var, 1))
+                param_values = set([param_values])
 
-    def qstn(self, has_qstn=False):
-        self.open_group(grouped=False)
-        if self.lookahead.name == QSTN:
-            if has_qstn:
-                raise Exception("Parising error")
-            self.consume(QSTN)
-            self.sentence.get(self.current_sentence_pos).possible_values.append(("", 0, {None}, 1))
-            self.qstn(has_qstn=True)
+                if "" in param_values:
+                    raise Exception("parse error")
+
+            param_op = param.group("op")
+            if param_op == ">":
+                preceding_values = set(param_values)
+                preceding_code = 1
+            elif param_op == "~":
+                preceding_values = set(param_values)
+                preceding_code = -1
+            else:
+                if "?" in preceding_values:
+                    raise Exception("Parse exception")
+
+                if len([val for val in param_values if val == "?"]) > 1:
+                    raise Exception("Parse exception")
+
+                param_possibilities.append({"values": param_values, "preceding_code": preceding_code, 
+                                            "preceding_values": preceding_values, "type": "param"})
+
+                preceding_values = {None}                                            
+                preceding_code = 0
+
+        return param_possibilities
+
 
 class FunStr:
 
@@ -258,6 +184,6 @@ class FunStr:
 if __name__ == "__main__":
     #""
     parser = Parser()
-    parser.parse("{v1|v2|v3|?|v9}{(v2|v3|v9)>v4|?|v1~v5}{v1>WOW}")
-    print (FunStr("{v1|v2|v3|?|v9}{(v2|v3|v9)>v4|?|v1~v5}{v1>WOW}").generate())
+    parser.parse("{(_var1[0]|var2)~(var3|var4|?)|var5|var6|var6>var7|(var6|var7)~var8|var2>(var9|var10)} pops alot {more_params}")
+    # print (FunStr("{v1|v2|v3|?|v9}{(v2|v3|v9)>v4|?|v1~v5}{v1>WOW}").generate())
     # parser.sentence.print_lst()
