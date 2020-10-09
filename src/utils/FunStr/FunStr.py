@@ -1,9 +1,9 @@
-from re import findall, compile as recompile
+# from re import findall, compile as recompile
 
-PARAMETER_PATTERN  = recompile(r"\{([\w\d\-]+)[^\s\{\}]*\}")
+# PARAMETER_PATTERN  = recompile(r"\{([\w\d\-]+)[^\s\{\}]*\}")
 
-def parameters_list(funString):
-    return findall(PARAMETER_PATTERN, funString)
+# def parameters_list(funString):
+#     return findall(PARAMETER_PATTERN, funString)
 
 
 import random
@@ -215,7 +215,6 @@ class Parser:
             self.sentence.get(self.current_sentence_pos).possible_values.append(("", 0, {None}, 1))
             self.qstn(has_qstn=True)
 
-
 class FunStr:
 
     def __init__(self, pattern=None):
@@ -231,29 +230,26 @@ class FunStr:
 
     def generate(self):
         formatting = []
-        prev_choice = random.choice(self.sentence[0])
-        formatting.append(prev_choice)
-        for level in self.sentence[1:]:
-            if level[0][3] == 1:
-                level_options = []
-                for option in level:
-                    if option[1] == 1 and prev_choice[0] in option[2]:
-                        level_options.append(option)
-                    elif option[1] == -1 and prev_choice[0] not in option[2]:
-                        level_options.append(option)
-                    elif option[1] == 0:
-                        level_options.append(option)
-                if level_options:
-                    prev_choice = random.choice(level_options)
-                else:
+        for state in self.sentence:
+            if len(state) == 1:
+                if state[0][3] == 0:
+                    formatting.append(state[0][0])
                     continue
-                formatting.append(prev_choice)
-            elif level[0][3] == 0:
-                formatting.append(level[0])
-            else:
-                raise Exception("NO")
-            
-        return "".join("{" + param[0] + "}" if param[3] == 1 else param[0] for param in formatting if param[0] != "")
+            state_options = []
+            for option in state:
+                if option[1] == 1 and option[2].intersection(formatting):
+                    state_options.append("{" + option[0] + "}")
+                elif option[1] == -1 and not option[2].intersection(formatting):
+                    state_options.append("{" + option[0] + "}")
+                elif option[1] == 0:
+                    state_options.append("{" + option[0] + "}")
+                else:
+                    state_options.append("{}")
+            choice = random.choice(state_options)
+            if choice != "{}":
+                formatting.append(choice)
+
+        return "".join(formatting)
 
 
             
