@@ -76,6 +76,7 @@ class BaseModel():
 
         BaseModel.model_counter[my_type] += 1
 
+    
     def __call__(self, *args, **kwargs):
         """Call self.generate_data to generate data."""
         return self.generate_data(*args, **kwargs)

@@ -6,7 +6,7 @@ from dateutil.tz import gettz
 from dateutil.utils import default_tzinfo
 from ..GeneratorExceptions import FormatError
 from dateutil.relativedelta import relativedelta
-
+from ..GeneratorDecorators import GeneratingFunction
 
 class DateGenerator(FormattedGenerator):
     """Generator to generate k dates in a given range, using a spesific format.
@@ -115,6 +115,7 @@ class DateGenerator(FormattedGenerator):
         else:
             raise TypeError(f"Variable 'time' of type {type(time)} is not a supported type.")
     
+    @GeneratingFunction
     def _data_generator(self, k, format_used=None, tzinfo=None, steps="D", return_datetime=False):
         """Generate k dates.
 
@@ -149,32 +150,31 @@ class DateGenerator(FormattedGenerator):
         if format_used is None and not return_datetime:
             format_used = self.default_format
         
-        # Generate and choose k dates.
-        chosen_dates = (np.datetime64(self.timeframe[0]) + self.random_generator.integers(0, self.time_defference, size=k).astype("timedelta64[s]").astype(f"timedelta64[{steps}]")).astype(datetime)
+        # Generate k dates.
+        chosen_deltas = self.random_generator.integers(0, self.time_defference, size=k).astype("timedelta64[s]").astype(f"timedelta64[{steps}]")
+        chosen_dates = (np.datetime64(self.timeframe[0], steps) + chosen_deltas).astype(datetime)
         
+        # If a default timezone is provided, but a new one is not, use the default.
         if tzinfo is None and self.tzinfo is not None:
             tzinfo = self.tzinfo
 
-        if tzinfo is not None:
-            if isinstance(tzinfo, str):
-                tzinfo = gettz(tzinfo)
-
-            try:
-                if return_datetime:
-                    return tuple(default_tzinfo(date, tzinfo) for date in chosen_dates)
-
-                func = lambda date: default_tzinfo(date, tzinfo).strftime(format_used)
-                return tuple(map(func, chosen_dates))
-            
-            except ValueError:
-                raise FormatError(format_used, self)
-
+        # If this part fails, it is probably because of a bad format
         try:
+            if tzinfo is not None:
+                if isinstance(tzinfo, str):
+                    tzinfo = gettz(tzinfo)
+                
+                    if return_datetime:
+                        return (default_tzinfo(date, tzinfo) for date in chosen_dates)
+
+                    func = lambda date: default_tzinfo(date, tzinfo).strftime(format_used)
+                    return map(func, chosen_dates)
+
             if return_datetime:
-                return tuple(chosen_dates)
+                return chosen_dates
 
             func = lambda date: date.strftime(format_used)
-            return tuple(map(func, chosen_dates))
+            return map(func, chosen_dates)
 
         except ValueError:
                 raise FormatError(format_used, self)

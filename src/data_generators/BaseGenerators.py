@@ -104,12 +104,12 @@ class GeneratorObject():
         self.seed = seed
         self.random_generator = default_rng(seed)
 
-                        # TODO change generate_data to preprocess_data
-    @GeneratingFunction # TODO change all of the generating functions to be at the lowest level possible.
+                        
+    @GeneratingFunction
     def __call__(self, k, *args, **kwargs):
         """A helper method to make it possible to generate data straight from the object.
             
-            Simply calls this ``GeneratorObject``'s ``generate_data`` method.
+            Simply calls this ``GeneratorObject``'s ``_preprocess_data`` method.
 
             Parameters
             ----------
@@ -124,7 +124,7 @@ class GeneratorObject():
             -------
             list
                 All the samples concatenated to a list.
-                The returned list is returned from ``generate_data``
+                The returned list is returned from ``_preprocess_data``
             
             See Also
             --------
@@ -139,23 +139,26 @@ class GeneratorObject():
             >>> gen(5)
             [-5, 2, 1, -1, -1]
         """
-        return self.generate_data(k, *args, **kwargs)
+        return self._preprocess_data(k, *args, **kwargs)
 
+    @GeneratingFunction
     def _data_generator(self, k, *args, **kwargs):
         """Generate data for this ``GeneratorObject``.
 
+            .. note:: 
+                When implementing this method, wrap it with a @GeneratingFunction decorator to avoid any unexpected behaviours.
+
             .. warning:: 
-                All children of ``GeneratorObject`` need to implement this method or pass it to the next one.
+                All children of ``GeneratorObject`` need to implement this method or pass it to the next one or a NotImplementedError will be raised.
             
             This is where the data generation logic sits.
             Logic can be as simple as in ``IntegerGenerator`` or complex as in ``DateGenerator``"""
         raise NotImplementedError
 
-    def generate_data(self, k, *args, **kwargs):
+    def _preprocess_data(self, k, *args, **kwargs):
         """Execute any general logic for ``GeneratorObject`` before calling it's ``_data_generator``.
             
-            .. note:: 
-                When implementing this method, wrap it with a @GeneratingFunction decorator to avoid any unexpected behaviours.
+            
 
             .. warning:: 
                 All children of ``GeneratorObject`` need to implement this method or pass it to the next one.
@@ -167,12 +170,12 @@ class GeneratorObject():
                 If you do not implement this method with at least calling ``_data_generator``, you won't be able to use __call__ unless you overwrite it too.
                 Meaning, you want be able to generate data by simply writing ``GeneratorObject(k)``.
 
-            This can be used for example in places such as the ``FromJSONSimpleGenerator``, 
-            where it is used to set the format and break the sentence for the _data_generator. TODO change this part when I finish FunStr
+            This can be used for example in places such as the ``FileSourceGenerator``, 
+            where it is used to set the format and break the sentence for the ``_data_generator``. TODO change this part when I finish FunStr
 
             Examples
             --------
-            What would happen if ``NumericGenerator``, didn't implement generate_data.
+            What would happen if ``NumericGenerator``, didn't implement _preprocess_data.
             >>> from data_generators.numeric_generators.BaseGenerators import NumericGenerator
             >>> gen = NumericGenerator(0,5)
             >>> gen(2)
@@ -384,8 +387,7 @@ class FormattedGenerator(GeneratorObject):
         raise NotImplementedError
     
     # TODO Allow for multi-variable replacement by using FunStr
-    @GeneratingFunction
-    def generate_data(self, k, format_name="default", *args, **kwargs):
+    def _preprocess_data(self, k, format_name="default", *args, **kwargs):
         """Get the generation format and call generator function.
 
             Parameters
@@ -406,18 +408,18 @@ class FormattedGenerator(GeneratorObject):
 
             Examples
             --------
-            Using ``generate_data`` without a format to generate data using it's ``default_format``:
+            Using ``_preprocess_data`` without a format to generate data using it's ``default_format``:
 
             >>> from data_generators.formatted_generators.DateGenerator import DateGenerator
             >>> gen = DateGenerator(datetime(2020, 10, 6), datetime(2020, 10, 8), seed=42)
-            >>> gen.generate_data(5)
+            >>> gen(5)
             ['06-10-2020', '07-10-2020', '07-10-2020', '06-10-2020', '06-10-2020']
 
-            Setting ``default_data`` using ``default_format`` and using ``generate_data`` to generate data:
+            Setting ``default_format`` using ``default_format`` parameter in the constructor:
 
             >>> from data_generators.formatted_generators.DateGenerator import DateGenerator
             >>> gen = DateGenerator(datetime(2020, 10, 6), datetime(2020, 10, 8), default_format="%Y-%m-%d %H:%M:S", seed=42)
-            >>> gen.generate_data(5)
+            >>> gen(5)
             ['2020-10-06 04:17:02', '2020-10-07 13:08:59', '2020-10-07 07:25:09', '2020-10-06 21:03:58', '2020-10-06 20:47:05']
         """
         format_used = self.get_format(format_name)
@@ -508,8 +510,7 @@ class FileSourceGenerator(FormattedGenerator):
         return generated_data
 
     # TODO Allow for multi-variable replacement by using FunStr
-    @GeneratingFunction
-    def generate_data(self, k, format_name="default", *args, **kwargs):
+    def _preprocess_data(self, k, format_name="default", *args, **kwargs):
         """Get the generation format and call generator function.
 
             Parameters
@@ -535,18 +536,18 @@ class FileSourceGenerator(FormattedGenerator):
 
             Examples
             --------
-            Using ``generate_data`` to generate data with specific format name:
+            Generate data with specific format name:
 
             >>> from data_generators.entity_generators.HumanNameGenerator import HumanNameGenerator
             >>> gen = HumanNameGenerator(locale="en_INTER", seed=42)
-            >>> gen.generate_data(5, "iffl")
+            >>> gen(5, "iffl")
             ['A. Stillwell', 'L. Bloor', 'J. Penney', 'C. Cordrey', 'Y. Boone']
 
-            Setting ``default_data`` using ``default_format_name`` and using ``generate_data`` to generate data with ``default_format``:
+            Setting ``default_format`` using ``default_format_name`` and generating 5 samples:
 
             >>> from data_generators.entity_generators.HumanNameGenerator import HumanNameGenerator
             >>> gen = HumanNameGenerator(locale="en_INTER", default_format_name="lff", seed=42)
-            >>> gen.generate_data(5)
+            >>> gen(5)
             ['Bodley Belle', 'Rumbley Ivy', 'Nettle Armani', 'Hickcox Alaina', 'Herbertson Arianna']
         """
         if not self.data:
@@ -675,8 +676,7 @@ class NumericGenerator(GeneratorObject):
         """numeric data generator"""
         raise NotImplementedError
 
-    @GeneratingFunction
-    def generate_data(self, k, *args, **kwargs):
+    def _preprocess_data(self, k, *args, **kwargs):
         """Call the generator function.
 
             Parameters
@@ -695,11 +695,11 @@ class NumericGenerator(GeneratorObject):
 
             Examples
             --------
-            Using ``generate_data`` to generate data:
+            Generating 5 random integers:
 
             >>> from data_generators.entity_generators.HumanNameGenerator import HumanNameGenerator
             >>> gen = IntegerGenerator(-7, 10, seed=42)
-            >>> gen.generate_data(5)
+            >>> gen.(5)
             [-6, 6, 4, 0, 0]
 
 

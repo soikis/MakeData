@@ -1,5 +1,5 @@
 from ..BaseGenerators import NumericGenerator
-
+from ..GeneratorDecorators import GeneratingFunction
 
 class IntegerGenerator(NumericGenerator):
     """Generator to generate k integers in a given range.
@@ -26,6 +26,7 @@ class IntegerGenerator(NumericGenerator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)    
     
+    @GeneratingFunction
     def _data_generator(self, k):
         """Generate k integers.
 
