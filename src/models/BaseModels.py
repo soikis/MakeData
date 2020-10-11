@@ -207,7 +207,7 @@ class BaseModel():
 
             See Also
             --------
-            data_generators.BaseGenerators : An important note about resetting seed values - you shouldn't or at least be careful about it.
+            data_generators.BaseGenerators.reset_seed : An important note about resetting seed values - you shouldn't or at least be careful about it.
 
             Examples
             --------

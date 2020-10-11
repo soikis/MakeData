@@ -1,12 +1,14 @@
-from re import finditer, findall, compile as recompile
+from re import finditer, findall, search, compile as recompile
 
-# PARAMETER_PATTERN  = recompile(r"\{([\w\d\-]+)[^\s\{\}]*\}")
+# SIMPLE_PARAMETER_PATTERN  = recompile(r"\{([\w\d\-]+)[^\s\{\}]*\}")
 
-# def parameters_list(funString):
-#     return findall(PARAMETER_PATTERN, funString)
+# def parameters_list(funString): TODO PROBABLY NOT RELEVANT AT ALL
+#     return findall(SIMPLE_PARAMETER_PATTERN, funString)
 
-PARAMETERS_TEXT_SPLITTER = recompile(r"\\(?P<break>[\{\}])|\{(?P<params>[^\s\\]+?)\}|(?P<txt>[^\{\}\\]+)|(?P<bad_match>.+)")
-PARAMETER_PARSER = recompile(r"(?P<var>[\w\d\?\[\]]+|\((?P<var_group>[\w\d\|\?\[\]]+)\))(?P<op>[>~])?")
+
+PARAMETERS_TEXT_SPLITTER = recompile(r"\\(?P<break>[\{\}])|\{(?P<params>.+?)[^\\]\}|(?P<txt>[^\{\}\\]+)|(?P<bad_match>.+)")
+PARAMETER_PARSER = recompile(r"(?P<bad_var>[|(){}]?:)|(?P<var>[\w\d?]+[\w\d?[\]{}:\s.()]*|\((?P<var_group>[\w\d?|[\]{}:\s.()]+)\))(?P<op>[>~|])?|(?P<bad_op_group>[(){}>~|])")
+CLEAN_VAR = recompile(r"[\w\d]+")
 
 import random
 
@@ -55,15 +57,16 @@ class Parser:
         except StopIteration:
             return Token(BREAK, BREAK_CHAR)
 
+
     @staticmethod
     def parse(pattern):
         sentence = []
-        is_first_param = True
+        parameter_counter = 0
         prev_group = ""
         for segment in finditer(PARAMETERS_TEXT_SPLITTER, pattern):
             if segment.group("params") is not None:
-                sentence.append(Parser.process_parameter(segment.group("params"), is_first_param))
-                is_first_param = False
+                sentence.append(Parser.process_parameter(segment.group("params").replace(r"\{","{").replace(r"\}","}"), parameter_counter))
+                parameter_counter += 1
                 prev_group = "params"
             elif segment.group("txt") is not None:
                 if prev_group == "txt":
@@ -85,33 +88,46 @@ class Parser:
             
 
     @staticmethod
-    def process_parameter(parameter_values, is_first_param):
+    def process_parameter(parameter_values, param_id):
         param_possibilities = []
         preceding_values = {None}                                            
         preceding_code = 0
+        alternative = True
         for param in finditer(PARAMETER_PARSER, parameter_values):
+            if param.group("bad_var") is not None:
+                raise Exception("Parse Error")
+            elif param.group("bad_op_group") is not None:
+                raise Exception("Parse Error")
+            
             if param.group("var_group") is not None:
                 param_values = tuple(param.group("var_group").split("|"))
+                if "" in param_values:
+                    raise Exception("Parse error - empty or in parameter")
             elif param.group("var") is not None:
                 param_values = tuple([param.group("var")])
             else:
                 raise Exception("Parse Exception")
 
             if param.group("op") is not None:
-                if is_first_param:
-                    raise Exception("Parse error first parameter can't contain a conditinoal statement.")  # TODO make this available
-                if preceding_code != 0:
-                    raise Exception("Parse error")
-                invalid_ids = [value for value in param_values if not value.isidentifier()]
-                if invalid_ids:
-                    raise Exception("Parse error")
-                if param.group("op") == ">":
-                    preceding_values = param_values
-                    preceding_code = 1
-                elif param.group("op") == "~":
-                    preceding_values = param_values
-                    preceding_code = -1
-                continue
+                if  param.group("op") == "|":
+                    alternative = True
+                else:
+                    if param_id == 0:
+                        raise Exception("Parse error first parameter can't contain a conditinoal statement.")  # TODO make this available
+                    if preceding_code != 0:
+                        raise Exception("Parse error")
+                    invalid_ids = [value for value in param_values if not value.isidentifier()]
+                    if invalid_ids:
+                        raise Exception("Parse error")
+                    if param.group("op") == ">":
+                        preceding_values = param_values
+                        preceding_code = 1
+                    elif param.group("op") == "~":
+                        preceding_values = param_values
+                        preceding_code = -1
+                    continue
+            else:
+                alternative = False
             
             if "?" in preceding_values:
                     raise Exception("Parse exception")
@@ -121,6 +137,9 @@ class Parser:
 
             preceding_values = {None}                                            
             preceding_code = 0
+
+        if alternative:
+                raise Exception("Parse Error")
 
         return param_possibilities
 
@@ -135,25 +154,30 @@ class FunStr:
             self.random_generator = random.Random()
         
         if pattern is not None:
-            self.sentence = self.parser.parse(pattern)
-            self.compiled = True
+            self.compile(pattern)
         else:
             self.sentence = None
             self.compiled = False
 
+    def compile(self, pattern):
+        self.sentence = self.parser.parse(pattern)
+        self.compiled = True
+
     def generate_format(self):
+        # TODO use template strings if safety is needed - https://lucumr.pocoo.org/2016/12/29/careful-with-str-format/
+        # and https://realpython.com/python-string-formatting/
         if self.compiled:
             formatting = []
-            last_param_pos = 0
-            for i, segment in enumerate(self.sentence):
+            previous_params = set()
+            for segment in self.sentence:
                 if isinstance(segment, str):
                     formatting.append(segment)
                 elif isinstance(segment, list):
                     segment_options = []
                     for option in segment:
-                        if option["preceding_code"] == 1 and formatting[last_param_pos][1:-1] in option["preceding_values"]:
+                        if option["preceding_code"] == 1 and previous_params.intersection(option["preceding_values"]):
                             segment_options.extend(option["values"])
-                        elif option["preceding_code"] == -1 and formatting[last_param_pos][1:-1] not in option["preceding_values"]:
+                        elif option["preceding_code"] == -1 and not previous_params.intersection(option["preceding_values"]):
                             segment_options.extend(option["values"])
                         elif option["preceding_code"] == 0:
                             segment_options.extend(option["values"])
@@ -166,16 +190,17 @@ class FunStr:
                     
                     try:
                         choice = self.random_generator.choice(segment_options)
-                        last_param_pos = i
+                        previous_params.add(search(CLEAN_VAR, choice).group())
                         if choice != "?":
                             formatting.append("{" + choice +"}")
                             continue
                         formatting.append("")
+                        
                     except IndexError:
                         if not segment_options:
                             formatting.append("")
                         else:
-                            raise IndexError() # TODO take error from except statement
+                            raise IndexError() # TODO take message from except statement
                 else:
                     raise Exception("Unkown error")
             return "".join(formatting)
@@ -190,5 +215,5 @@ if __name__ == "__main__":
     #""
     parser = Parser()
     # parser.parse("{(_var1|var2)~(var3[0]|var4|?)|var5|var6|var6>var7|(var6|var7)~var8|var2>(var9|var10)} pops alot \{\} {more_params}")
-    print (FunStr("{var3[0]|var4|?|var5|var6|var7|var8|var9|var10} pops alot \{\} {more_params}", seed=2).generate_format())
+    print (FunStr("{var[10]|var2}{var>var3|var4}",seed=4).generate_format())
     # parser.sentence.print_lst()

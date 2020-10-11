@@ -86,7 +86,7 @@ class GeneratorObject():
             
             See Also
             --------
-            model_generators.BaseModels.set_seeds : Reset the seeds of all the ``GeneratorObject``s in the model. # TODO move this to point the other way around.
+            model_generators.BaseModels.set_seeds : Reset the seeds of all the ``GeneratorObject``s in a model.
             
             Examples
             --------
