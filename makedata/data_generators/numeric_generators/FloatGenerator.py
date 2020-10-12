@@ -4,6 +4,8 @@ from ..BaseGenerators import NumericGenerator
 class FloatGenerator(NumericGenerator):
     """Generator to generate k floating point numbers in a given range.
 
+        Parameters
+        ----------
         *args
                 Variable length argument list
         **kwargs

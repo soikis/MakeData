@@ -1,9 +1,9 @@
 from re import finditer, findall, search, compile as recompile
 
-# SIMPLE_PARAMETER_PATTERN  = recompile(r"\{([\w\d\-]+)[^\s\{\}]*\}")
+SIMPLE_PARAMETER_PATTERN  = recompile(r"\{([\w\d\-]+)[^\s\{\}]*\}")
 
-# def parameters_list(funString): TODO PROBABLY NOT RELEVANT AT ALL
-#     return findall(SIMPLE_PARAMETER_PATTERN, funString)
+def parameters_list(funString): #TODO PROBABLY NOT RELEVANT AT ALL
+    return findall(SIMPLE_PARAMETER_PATTERN, funString)
 
 
 PARAMETERS_TEXT_SPLITTER = recompile(r"\\(?P<break>[\{\}])|\{(?P<params>.+?)[^\\]\}|(?P<txt>[^\{\}\\]+)|(?P<bad_match>.+)")

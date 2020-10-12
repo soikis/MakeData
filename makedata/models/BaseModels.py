@@ -9,49 +9,49 @@ from collections import OrderedDict
 class BaseModel():
     """A basic data generation model.
 
-       A basic data model to generate data from. It is comparable to django's models or, if you don't know it,
-       a pandas DataFrame, or SQL table.
+    A basic data model to generate data from. It is comparable to django's models or, if you don't know it,
+    a pandas DataFrame, or SQL table.
 
-        Parameters
-        ----------
-        generators : list of GeneratorObjects
-            A list of ``GeneraotrObject``s that the model will use for data generation. For every single data sample generated,
-            the model will use every ``GeneratorObject`` in the order they were introduced in the list.
-        seed : int or float or str, optional
-            A random seed to use on all of the generators. If a generator already has a seed, it will overwrite it if ``overwrite_seeds=True``.
-        overwrite_seeds : bool, optional
-            If true, overwrite all of the generators random seeds, else, add a seed to ones that don't have any seed.
-            **BE CAREFULL, CHANING A ``GeneratorObject``'S SEED IS AN INPLACE ACTION**
-        name : str, optional
-            The name of the model, if not provided, it will be infered from the number of models existing in the project.
+    Parameters
+    ----------
+    generators : list of GeneratorObjects
+        A list of ``GeneraotrObject`` that the model will use for data generation. For every single data sample generated,
+        the model will use every ``GeneratorObject`` in the order they were introduced in the list.
+    seed : int or float or str, optional
+        A random seed to use on all of the generators. If a generator already has a seed, it will overwrite it if ``overwrite_seeds=True``.
+    overwrite_seeds : bool, optional
+        If true, overwrite all of the generators random seeds, else, add a seed to ones that don't have any seed.
+        **BE CAREFULL, CHANING A ``GeneratorObject`` SEED IS AN INPLACE ACTION**
+    name : str, optional
+        The name of the model, if not provided, it will be infered from the number of models existing in the project.
 
-        Attributes
-        ----------
-        model_counter : collections.Counter
-            A counter used to keep track of how many ``Model``s of each type are created.
-        gens_dict : collections.OrderedDict
-            A dictinoary that is used to access all the generators that exist inside this model.
-        name : str, optional
-            The name of a ``Model``.
+    Attributes
+    ----------
+    model_counter : collections.Counter
+        A counter used to keep track of how many ``Model`` of each type are created.
+    gens_dict : collections.OrderedDict
+        A dictinoary that is used to access all the generators that exist inside this model.
+    name : str, optional
+        The name of a ``Model``.
 
-        Examples
-        --------
-        Using ``BaseModel`` to create a simple person generator and overwriting all of the generator's seeds:
+    Examples
+    --------
+    Using ``BaseModel`` to create a simple person generator and overwriting all of the generator's seeds:
 
-        >>> from data_generators.numeric_generators.IntegerGenerator import IntegerGenerator
-        >>> from data_generators.formatted_generators.DateGenerator import DateGenerator
-        >>> from data_generators.formatted_generators.NameGenerator import NameGenerator
-        >>> from models.BaseModels import BaseModel
-        >>> nameGen = NameGenerator(locale="en_INTER", default_format_name="ffl", name="FullName")
-        >>> ageGen = IntegerGenerator(18, 38, name="Age",seed=2)
-        >>> birthdayGen = DateGenerator("1-1-1990", "31-12-1999", name="Birthday")
-        >>> personModel = BaseModel([nameGen, ageGen, birthdayGen], seed=42, overwrite_seeds=True, name="PersonModel")
-        >>> personModel(5)
-        {0: {'FullName': 'Alexa Stillwell', 'Age': 19, 'Birthday': '22-11-1990'}, 
-        1: {'FullName': 'Landry Bloor', 'Age': 33, 'Birthday': '26-09-1997'}, 
-        2: {'FullName': 'Janiyah Penney', 'Age': 31, 'Birthday': '17-07-1996'}, 
-        3: {'FullName': 'Christina Cordrey', 'Age': 26, 'Birthday': '22-05-1994'}, 
-        4: {'FullName': 'Yaretzi Boone', 'Age': 26, 'Birthday': '30-04-1994'}}
+    >>> from data_generators.numeric_generators.IntegerGenerator import IntegerGenerator
+    >>> from data_generators.formatted_generators.DateGenerator import DateGenerator
+    >>> from data_generators.formatted_generators.NameGenerator import NameGenerator
+    >>> from models.BaseModels import BaseModel
+    >>> nameGen = NameGenerator(locale="en_INTER", default_format_name="ffl", name="FullName")
+    >>> ageGen = IntegerGenerator(18, 38, name="Age",seed=2)
+    >>> birthdayGen = DateGenerator("1-1-1990", "31-12-1999", name="Birthday")
+    >>> personModel = BaseModel([nameGen, ageGen, birthdayGen], seed=42, overwrite_seeds=True, name="PersonModel")
+    >>> personModel(5)
+    {0: {'FullName': 'Alexa Stillwell', 'Age': 19, 'Birthday': '22-11-1990'}, 
+    1: {'FullName': 'Landry Bloor', 'Age': 33, 'Birthday': '26-09-1997'}, 
+    2: {'FullName': 'Janiyah Penney', 'Age': 31, 'Birthday': '17-07-1996'}, 
+    3: {'FullName': 'Christina Cordrey', 'Age': 26, 'Birthday': '22-05-1994'}, 
+    4: {'FullName': 'Yaretzi Boone', 'Age': 26, 'Birthday': '30-04-1994'}}
     """
 
     model_counter = Counter()
@@ -103,7 +103,7 @@ class BaseModel():
 
             See Also
             --------
-            ModelFormats : An Enum class that has all the possible values for ``return_type``, use this class when you choose a ``return_type`` value.
+            :class:`makedata.models.ModelFormats.ModelFormats` : An Enum class that has all the possible values for ``return_type``, use this class when you choose a ``return_type`` value.
 
             Examples
             --------
@@ -198,7 +198,7 @@ class BaseModel():
 
     
     def reset_seeds(self, seed):
-        """Reset the seed for **all** (overwrites existing ones) of this models ``GeneratorObject``s.
+        """Reset the seed for **all** (overwrites existing ones) of this models list of ``GeneratorObject``.
 
             Parameters
             ----------
@@ -207,7 +207,7 @@ class BaseModel():
 
             See Also
             --------
-            data_generators.BaseGenerators.reset_seed : An important note about resetting seed values - you shouldn't or at least be careful about it.
+            :meth:`makedata.data_generators.BaseGenerators.reset_seed` : An important note about resetting seed values - you shouldn't or at least be careful about it.
 
             Examples
             --------

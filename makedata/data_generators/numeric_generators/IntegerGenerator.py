@@ -4,6 +4,8 @@ from ..GeneratorDecorators import GeneratingFunction
 class IntegerGenerator(NumericGenerator):
     """Generator to generate k integers in a given range.
 
+        Parameters
+        ----------
         *args
                 Variable length argument list
         **kwargs

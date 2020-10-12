@@ -41,7 +41,7 @@ class DateGenerator(FormattedGenerator):
         
         See Also
         --------
-        data_generators.BaseGenerators.FormattedGenerator : All the available functionalities derived from ``FormattedGenerator``.
+        :class:`makedata.data_generators.BaseGenerators.FormattedGenerator` : All the available functionalities derived from ``FormattedGenerator``.
 
         Examples
         --------

@@ -7,9 +7,9 @@ class NameGenerator(LocaleFileSourceGenerator):
         
         See Also
         --------
-        data_generators.BaseGenerators.FormattedGenerator : All the available functionalities derived from ``FormattedGenerator``.
-        data_generators.BaseGenerators.FileSourcedGenerator : All the available functionalities derived from ``FileSourcedGenerator``.
-        data_generators.BaseGenerators.LocaleFileSourceGenerator : All the available functionalities derived from ``LocaleFileSourceGenerator``.
+        :class:`makedata.data_generators.BaseGenerators.FormattedGenerator` : All the available functionalities derived from ``FormattedGenerator``.
+        :class:`makedata.data_generators.BaseGenerators.FileSourcedGenerator` : All the available functionalities derived from ``FileSourcedGenerator``.
+        :class:`makedata.data_generators.BaseGenerators.LocaleFileSourceGenerator` : All the available functionalities derived from ``LocaleFileSourceGenerator``.
 
         Examples
         --------

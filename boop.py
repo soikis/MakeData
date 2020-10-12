@@ -1,10 +1,10 @@
-from data_generators.numeric_generators.IntegerGenerator import IntegerGenerator
+from makedata.data_generators.numeric_generators.IntegerGenerator import IntegerGenerator
 # from data_generators.numeric_generators.FloatGenerator import FloatGenerator
-from data_generators.formatted_generators.DateGenerator import DateGenerator
-from data_generators.formatted_generators.NameGenerator import NameGenerator
+from makedata.data_generators.formatted_generators.DateGenerator import DateGenerator
+from makedata.data_generators.formatted_generators.NameGenerator import NameGenerator
 from datetime import datetime
 from dateutil.tz import gettz
-from models.BaseModels import BaseModel
+from makedata.models.BaseModels import BaseModel
 
 
 def main():

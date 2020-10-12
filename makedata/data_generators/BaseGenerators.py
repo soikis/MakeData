@@ -6,21 +6,21 @@ from numpy.random import default_rng
 from .GeneratorDecorators import GeneratingFunction
 from collections import Counter
 from .GeneratorExceptions import FormatError, EmptySourceError, NoDefaultFormatError, FormatNotFoundError
-from utils.FunStr.FunStr import parameters_list
+from ..utils.FunStr.FunStr import parameters_list
+import os
 
 
 class GeneratorObject():
     """The basic generator class.
 
         .. note::
-            This class is intended for inheritence purposes only.
-
-        .. note::
-            The naming convention of a new ``GeneratorObject`` is TypeOrName(Singular[Integer-v|Integers-x]) + Generator, like: ``FormattedGenerator``.
-            TODO move this
-
-        .. note::
-        A ``GeneratorObject`` will return a tuple, meaning it will generate an immutable result.
+            * The naming convention of a new ``GeneratorObject`` is TypeOrName(Singular[Integer-v|Integers-x]) + Generator, like: ``FormattedGenerator``.
+            * This class is intended for inheritence purposes only.
+            * A ``GeneratorObject`` will return a tuple, meaning it will generate an immutable result.
+        
+        .. warning::
+            When implementing a new ``GeneratorObject`` that outputs data (not something you inherit from),
+            you must overwrite the _data_generator method, aswell as give it a @GeneratingFunction decorator. If you won't it might break functionallity.
 
         Parameters
         ----------
@@ -32,7 +32,7 @@ class GeneratorObject():
         Attributes
         ----------
         generators_counter : collections.Counter
-            A counter used to keep track of how many ``GeneratorObject``s of each type are created.
+            A counter used to keep track of how many ``GeneratorObject`` of each type are created.
         random_generator : numpy.random.default_rng
             The random generator used by all of the inheriting classes (``numpy.random.default_rng``).
         name : str
@@ -76,23 +76,19 @@ class GeneratorObject():
         """**Recreate** this ``GeneratorObject``'s ``random_generator`` with a seed.
 
             .. warning:: 
-                Only use this method if you absolutely have to. 
+                Only use this method if you absolutely have to.
+
             It will change the ``random_generator`` of the instance which might generate values you did not expect (no, not because they are random, ha-ha).
 
             Parameters
             ----------
-            seed : {None, int, array_like[ints], numpy.random.SeedSequence, numpy.random.BitGenerator, numpy.random.Generator}
+            seed : None or int or array_like[ints] or numpy.random.SeedSequence, numpy.random.BitGenerator
                 The seed to set the new ``random_generator`` with.
-            
-            See Also
-            --------
-            model_generators.BaseModels.set_seeds : Reset the seeds of all the ``GeneratorObject``s in a model.
             
             Examples
             --------
             Changing the random generator seed:
 
-            <numpy.random._pcg64.PCG64 object at 0x0000023CC54EA300>
             >>> from data_generators.numeric_generators.IntegerGenerator import IntegerGenerator
             >>> gen = IntegerGenerator((0,5), seed=42)
             >>> gen.random_generator._bit_generator
@@ -103,12 +99,11 @@ class GeneratorObject():
         """
         self.seed = seed
         self.random_generator = default_rng(seed)
-
                         
     @GeneratingFunction
     def __call__(self, k, *args, **kwargs):
         """A helper method to make it possible to generate data straight from the object.
-            
+        
             Simply calls this ``GeneratorObject``'s ``_preprocess_data`` method.
 
             Parameters
@@ -152,14 +147,13 @@ class GeneratorObject():
                 All children of ``GeneratorObject`` need to implement this method or pass it to the next one or a NotImplementedError will be raised.
             
             This is where the data generation logic sits.
-            Logic can be as simple as in ``IntegerGenerator`` or complex as in ``DateGenerator``"""
+            Logic can be as simple as in ``IntegerGenerator`` or complex as in ``DateGenerator``
+        """
         raise NotImplementedError
 
     def _preprocess_data(self, k, *args, **kwargs):
         """Execute any general logic for ``GeneratorObject`` before calling it's ``_data_generator``.
             
-            
-
             .. warning:: 
                 All children of ``GeneratorObject`` need to implement this method or pass it to the next one.
 
@@ -182,51 +176,50 @@ class GeneratorObject():
             Traceback (most recent call last):
                 ......
             NotImplementedError
-            >>> 
         """
         raise NotImplementedError
 
 class FormattedGenerator(GeneratorObject):
-    """A base class for all the ``GeneratorObject``s that use formatting.
+    """A base class for all the ``GeneratorObject`` that use formatting.
 
         .. note::
             This class is intended for inheritence purposes only.
 
         A ``GeneratorObject`` that uses formatting might be as complicated as a sentence ``GeneratorObject`` and as simple as a money ``GeneratorObject``,
-        which will be different from ``IntegerGenerator`` or 'FloatGenerator' because it will contain a currency sign (exmp. $) or currency name (exmp. ILS).
+        which will be different from ``IntegerGenerator`` or ``FloatGenerator`` because it will contain a currency sign (exmp. $) or currency name (exmp. ILS).
 
         Parameters
         ----------
         default_format : str, optional
-            The default format to use in this ``GeneratorObject``. **(An actual format, not name of format)**
-            Will be used as the format in every generation, if none is specified.
+            | The default format to use in this ``GeneratorObject``. **(An actual format, not name of format)**
+            | Will be used as the format in every generation, if none is specified.
         default_format_name : str, optional
-            The default format to use in this ``GeneratorObject`` **by name**.
-            Either use 'default_format', or 'default_format_name', otherwise an ValueError is raised.
+            | The default format to use in this ``GeneratorObject`` **by name**.
+            | Either use ``default_format``, or ``default_format_name``, otherwise an ValueError is raised.
         generate_format_symbols : bool, optional
-            If True, try to generate symbols for all the formats.
-            May be used with a given parameter 'ignore_errors' that will be passed to the generating function from '**kwargs'.
+            | If True, try to generate symbols for all the formats.
+            | May be used with a given parameter ``ignore_errors`` that will be passed to the generating function from ``kwargs``.
         default_must : bool, optional
-            If true, and ``default_format`` doesn't exist in the object raise NoDefaultFormatError.
-            Use it when a default format is necessary, regardless of existing ``formats`` dict.
+            | If true, and ``default_format`` doesn't exist in the object raise NoDefaultFormatError.
+            | Use it when a default format is necessary, regardless of existing ``formats`` dict.
         *args
-                Variable length argument list
+            Variable length argument list
         **kwargs
-            Arbitrary keyword arguments. 
-            May contain 'ignore_errors' -> bool which will be used with '_create_formats_symbols'
+            | Arbitrary keyword arguments. 
+            | May contain 'ignore_errors' (bool which will be used with '_create_formats_symbols').
         
         Attributes
         ----------
         formats : dict
-            A dictionary of the available formats for this ``GeneratorObject``.
-            Where 'name_of_format': (``FunStr`` or 'format') are the 'key':'value', respectively.
-            Look at the See Also section to understand ``FunStr``s.
-            If you use a 'format'  it can be something like a date format e.g. "%d-%m-%Y" (Depending on what you generate ofcourse).
-            **Do not set a format manuallly e.g. ``GeneratorObject.formats["name"] = "format"``, it might break the integrity of the ``GeneratorObject``**
-            # TODO add a function to add format.
+            | A dictionary of the available formats for this ``GeneratorObject``,
+            | where 'name_of_format': (``FunStr`` or 'format') are the 'key':'value', respectively.
+            | TODO Look at the See Also section to understand ``FunStr``.
+            | If you use a 'format'  it can be something like a date format e.g. "%d-%m-%Y" (Depending on what you generate of course).
+            | **Do not set a format manuallly e.g. ``GeneratorObject.formats["name"] = "format"``, it might break the integrity of the ``GeneratorObject``**
+            
         formats_symbols : dict, optional
-            A dictionary with a mapping between an abbreviations of a format and it's full name.
-            Where 'abbreviation': 'name_of_format' are the 'key':'value', respectively.
+            | A dictionary with a mapping between a symbol (abbreviation) of a format and it's full name.
+            | Where 'symbol': 'name_of_format' are the 'key':'value', respectively.
         default_format : str, optional
             A default 'FunStr' or format.
         
@@ -383,7 +376,8 @@ class FormattedGenerator(GeneratorObject):
         raise FormatNotFoundError(name, self)
     
     def _data_generator(self, k, format_used, *args, **kwargs):
-        """formatted data generator"""
+        """formatted data generator
+        """
         raise NotImplementedError
     
     # TODO Allow for multi-variable replacement by using FunStr
@@ -427,27 +421,27 @@ class FormattedGenerator(GeneratorObject):
         return self._data_generator(k=k, format_used=format_used, *args, **kwargs)
 
 class FileSourceGenerator(FormattedGenerator):
-    """A base class for all the ``GeneratorObject``s that use data from files.
+    """A base class for all the ``GeneratorObject`` that use data from files.
 
         A ``GeneratorObject`` might be read from multiple file types such as *.json*,*.csv*,*.txt* etc..
 
         Parameters
         ----------
-        file_parser : file parsing function
+        file_parser : function
             The ``function`` of a file parser. (Just the function, without brackets)
         file_path : bool, optional
             The path to the file to draw data from.
             **Only ``locale`` or ``file_path`` can be used, not both.**
         *args
-                Variable length argument list
+            Variable length argument list.
         **kwargs
             Arbitrary keyword arguments. 
         
         Attributes
         ----------
-        source_path: str
+        source_path : str
             The path to the source of the generator. The value is generated using file_path or locale.
-        data: dict
+        data : dict
             The data used for generation.
 
         Raises
@@ -480,7 +474,7 @@ class FileSourceGenerator(FormattedGenerator):
             k : int
                 How many samples to generate.
             format_used : str
-               The str to generate data based on. TODO maybe FunStr
+                The str to generate data based on. TODO maybe FunStr
             *args
                 Variable length argument list
             **kwargs
@@ -489,7 +483,7 @@ class FileSourceGenerator(FormattedGenerator):
             Returns
             -------
             list
-                All the generated values concatenated to a single list.
+                    All the generated values concatenated to a single list.
         """
         # TODO add choice for replacement for uniqueness
         generated_data = []
@@ -559,7 +553,7 @@ class FileSourceGenerator(FormattedGenerator):
         return self._data_generator(k,format_used, *args, **kwargs)   
 
 class LocaleFileSourceGenerator(FileSourceGenerator):
-    """A base class for all the ``GeneratorObject``s that use data from the library files (using the library naming convention).
+    """A base class for all the ``GeneratorObject`` that use data from the library files (using the library naming convention).
 
         Parameters
         ----------
@@ -594,7 +588,7 @@ class LocaleFileSourceGenerator(FileSourceGenerator):
             self.locale = locale
 
             generator_name = self.__class__.__name__
-            source_path = syspath_join("DataSources", f"{generator_name}", f"{self.locale}.json")
+            source_path = syspath_join(os.path.normpath("makedata\data_generators\data_sources"), f"{generator_name}", f"{self.locale}.json")
         else:
             raise TypeError(f"Locale '{locale}' has to be an str, but is '{type(locale)}''")
         
@@ -617,11 +611,11 @@ class FromJSONGenerator(FileSourceGenerator):
         FormattedGenerator : All functinality derived from ``FormattedGenerator``.
         FileSourceGenerator : All functinality derived from ``FileSourceGenerator``.
     """
-    def __init__(self, **kwargs):
-        super().__init__(json_load, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(json_load, *args, **kwargs)
 
 class NumericGenerator(GeneratorObject):
-    """A base class for all numeric ``GeneratorObject``s.
+    """A base class for all numeric ``GeneratorObject``.
 
         .. note::
             This class is intended for inheritence purposes only.
@@ -673,36 +667,35 @@ class NumericGenerator(GeneratorObject):
         self.high = high
         
     def _data_generator(self, k):
-        """numeric data generator"""
+        """numeric data generator
+        """
         raise NotImplementedError
 
     def _preprocess_data(self, k, *args, **kwargs):
         """Call the generator function.
 
-            Parameters
-            ----------
-            k : int
-                How many samples to generate.
-            *args
-                Variable length argument list
-            **kwargs
-                Arbitrary keyword arguments.
+        Parameters
+        ----------
+        k : int
+            How many samples to generate.
+        *args
+            Variable length argument list
+        **kwargs
+            Arbitrary keyword arguments.
 
-            Returns
-            -------
-            list
-                All the generated values concatenated to a single list.
+        Returns
+        -------
+        list
+            All the generated values concatenated to a single list.
 
-            Examples
-            --------
-            Generating 5 random integers:
+        Examples
+        --------
+        Generating 5 random integers:
 
-            >>> from data_generators.entity_generators.HumanNameGenerator import HumanNameGenerator
-            >>> gen = IntegerGenerator(-7, 10, seed=42)
-            >>> gen.(5)
-            [-6, 6, 4, 0, 0]
-
-
+        >>> from data_generators.entity_generators.HumanNameGenerator import HumanNameGenerator
+        >>> gen = IntegerGenerator(-7, 10, seed=42)
+        >>> gen.(5)
+        [-6, 6, 4, 0, 0]
         """
         # TODO add choice for replacement for uniqueness
         return self._data_generator(k, *args, **kwargs)
