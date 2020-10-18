@@ -165,7 +165,7 @@ class GeneratorObject():
                 Meaning, you want be able to generate data by simply writing ``GeneratorObject(k)``.
 
             This can be used for example in places such as the ``FileSourceGenerator``, 
-            where it is used to set the format and break the sentence for the ``_data_generator``. TODO change this part when I finish FunStr
+            where it is used to set the format and break the sentence for the ``_data_generator``.
 
             Examples
             --------
@@ -202,50 +202,67 @@ class FormattedGenerator(GeneratorObject):
         default_must : bool, optional
             | If true, and ``default_format`` doesn't exist in the object raise NoDefaultFormatError.
             | Use it when a default format is necessary, regardless of existing ``formats`` dict.
+        ignore_errors : bool, optional
+            | If ``True``, instead of raising an error when an existing symbol is generated, continue to the next symbol, else raise ``ValueError``.
+            | Has no effect if ``generate_format_symbols`` is ``False``.
         *args
             Variable length argument list
         **kwargs
             | Arbitrary keyword arguments. 
-            | May contain 'ignore_errors' (bool which will be used with '_create_formats_symbols').
         
+        Raises
+        ------
+        NoDefaultFormatError
+            If ``default_must`` is True, and no default format is found or set.
+
         Attributes
         ----------
         formats : dict
             | A dictionary of the available formats for this ``GeneratorObject``,
-            | where 'name_of_format': (``FunStr`` or 'format') are the 'key':'value', respectively.
-            | TODO Look at the See Also section to understand ``FunStr``.
-            | If you use a 'format'  it can be something like a date format e.g. "%d-%m-%Y" (Depending on what you generate of course).
+            | where 'name_of_format': 'format' are the 'key':'value', respectively.
+            | 'format' any string formatting you use.
             | **Do not set a format manuallly e.g. ``GeneratorObject.formats["name"] = "format"``, it might break the integrity of the ``GeneratorObject``**
-            
         formats_symbols : dict, optional
             | A dictionary with a mapping between a symbol (abbreviation) of a format and it's full name.
             | Where 'symbol': 'name_of_format' are the 'key':'value', respectively.
         default_format : str, optional
-            A default 'FunStr' or format.
+            A string format.
         
         See Also
         --------
         data_generators.formatted_generators.DateGenerator: An example of a generator that uses a specialized format.
     """
 
-    def __init__(self, default_format=None, default_format_name=None, generate_format_symbols=False, default_must=False, *args, **kwargs):
+    def __init__(self, default_format=None, default_format_name=None, generate_format_symbols=False, default_must=False, ignore_errors=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # TODO check everything about default formats
+        # Get the formats from the child class, to understand more, read about python inheritence and class attributes.
         self.formats = getattr(self, "formats", dict())
+
+        # If in a child class, the formats dict contains the format name "default", raise an exception.
         if "default" in self.formats:
             raise ValueError("Can't use the name 'default' in the formats dict, it is a reserved name.")
+        
+        # Get the format symbols from the child class, to understand more, read about python inheritence and class attributes.
         self.formats_symbols = getattr(self, "formats_symbols", dict())
         if generate_format_symbols:
-            self._create_formats_symbols(kwargs.pop("ignore_errors", False))
+            self._create_formats_symbols(ignore_errors)
 
         if default_format is not None and default_format_name is not None:
             raise ValueError(f"Either set 'default_format' or 'default_format_name', not both.")
-        if default_format is not None:
-            self.default_format = default_format
-        if default_format_name is not None:
-            self.default_format = self.get_format(default_format_name)
         
+        # Try to set a default format.
+        elif default_format is not None:
+            self.default_format = default_format
+            self.has_default = True
+        elif default_format_name is not None:
+            self.default_format = self.get_format(default_format_name)
+            self.has_default = True
+
+        else:
+            self.has_default = False
+        
+        # If 'default_must' is True, make sure there is a default format, else raise NoDefaultFormatError.
         if default_must:
             try:
                 self.default_format
@@ -260,12 +277,12 @@ class FormattedGenerator(GeneratorObject):
             Parameters
             ----------
             ignore_errors : bool, optional
-                If True, instead of raising an error when an existing symbol is generated, continue to the next symbol, else raise ValueError.
+                If ``True``, instead of raising an error when an existing symbol is generated, continue to the next symbol, else raise ``ValueError``.
 
             Raises
             ------
             ValueError
-                If a generated symbol already exists and 'ignore_errors' is False.
+                If a generated symbol already exists and 'ignore_errors' is ``False``.
         """
         not_symbolised_formats = (f[0] for f in self.formats_names if f[1] == "")
         for frmt in not_symbolised_formats:
@@ -353,7 +370,7 @@ class FormattedGenerator(GeneratorObject):
                 If no default format is found.
             FormatNotFoundError
                 If no format corresponding the given name is found.
-                
+
             Examples
             --------
             Get the default format of a DateGenerator:
@@ -384,7 +401,6 @@ class FormattedGenerator(GeneratorObject):
         """
         raise NotImplementedError
     
-    # TODO Allow for multi-variable replacement by using FunStr
     def _preprocess_data(self, k, format_name="default", *args, **kwargs):
         """Get the generation format and call generator function.
 
@@ -478,7 +494,7 @@ class FileSourceGenerator(FormattedGenerator):
             k : int
                 How many samples to generate.
             format_used : str
-                The str to generate data based on. TODO maybe FunStr
+                The str to generate data based on.
             *args
                 Variable length argument list
             **kwargs
@@ -494,7 +510,6 @@ class FileSourceGenerator(FormattedGenerator):
         
         data_keys = [fname for _, fname, _, _ in Formatter().parse(format_used) if fname != ""]
 
-        # TODO when FunStr will be done, it will return k formats and then we need to rewrite this function so it will fit this case. Such as get data for every single format.
         # Generating all values for the formatting.
         all_dataset = []
         for key in data_keys:
@@ -507,7 +522,6 @@ class FileSourceGenerator(FormattedGenerator):
 
         return generated_data
 
-    # TODO Allow for multi-variable replacement by using FunStr
     def _preprocess_data(self, k, format_name="default", *args, **kwargs):
         """Get the generation format and call generator function.
 

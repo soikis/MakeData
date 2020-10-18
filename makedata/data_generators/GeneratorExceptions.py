@@ -9,7 +9,6 @@ class GeneratorError(Exception):
                 Variable length argument list
             **kwargs
                 Arbitrary keyword arguments. 
-                May contain 'ignore_errors' -> bool which will be used with '_create_formats_symbols'
 
             Attributes
             ----------
@@ -42,7 +41,6 @@ class FormatError(GeneratorError):
                 Variable length argument list
             **kwargs
                 Arbitrary keyword arguments. 
-                May contain 'ignore_errors' -> bool which will be used with '_create_formats_symbols'
 
             Attributes
             ----------
@@ -76,7 +74,6 @@ class FormatNotFoundError(GeneratorError):
                 Variable length argument list
             **kwargs
                 Arbitrary keyword arguments. 
-                May contain 'ignore_errors' -> bool which will be used with '_create_formats_symbols'
 
             Attributes
             ----------
@@ -103,7 +100,6 @@ class NoDefaultFormatError(GeneratorError):
                 Variable length argument list
             **kwargs
                 Arbitrary keyword arguments. 
-                May contain 'ignore_errors' -> bool which will be used with '_create_formats_symbols'
 
             Attributes
             ----------

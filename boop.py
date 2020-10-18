@@ -9,7 +9,10 @@ from makedata.models.BaseModels import BaseModel
 
 def main():
     nameGen = NameGenerator(locale="en_INTER", default_format_name="ffl", name="Full Name")
-    ageGen = IntegerGenerator(18, 38, name="Age",seed=2)
+    ageGen = IntegerGenerator(0, 100, seed=42)
+    print(ageGen(5))
+    ageGen.reset_seed(20)
+    print(ageGen(5))
     birthdayGen = DateGenerator("1-1-1990", "31-12-1999", name="Birthday")
     print(birthdayGen(5, steps="ms"))
     personModel = BaseModel([nameGen, ageGen, birthdayGen], seed=42, overwrite_seeds=True, name="PersonModel")
