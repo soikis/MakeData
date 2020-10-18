@@ -6,7 +6,7 @@ from numpy.random import default_rng
 from .GeneratorDecorators import GeneratingFunction
 from collections import Counter
 from .GeneratorExceptions import FormatError, EmptySourceError, NoDefaultFormatError, FormatNotFoundError
-from ..utils.FunStr.FunStr import parameters_list
+from string import Formatter
 import os
 
 
@@ -227,6 +227,7 @@ class FormattedGenerator(GeneratorObject):
         --------
         data_generators.formatted_generators.DateGenerator: An example of a generator that uses a specialized format.
     """
+
     def __init__(self, default_format=None, default_format_name=None, generate_format_symbols=False, default_must=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -349,8 +350,10 @@ class FormattedGenerator(GeneratorObject):
             Raises
             ------
             NoDefaultFormatError
+                If no default format is found.
+            FormatNotFoundError
                 If no format corresponding the given name is found.
-
+                
             Examples
             --------
             Get the default format of a DateGenerator:
@@ -366,15 +369,16 @@ class FormattedGenerator(GeneratorObject):
             except AttributeError:
                 raise NoDefaultFormatError(self)
         
-        elif name is not None and isinstance(name, str):
-            if name in self.formats_symbols:
-                name = self.formats_symbols[name]
+        elif isinstance(name, str):
+            try:
+                if name in self.formats_symbols:
+                    name = self.formats_symbols[name]
                 return self.formats[name]
-            elif name in self.formats:
-                return self.formats.get(name, None)
+            except KeyError:
+                raise FormatNotFoundError(name, self)
 
         raise FormatNotFoundError(name, self)
-    
+
     def _data_generator(self, k, format_used, *args, **kwargs):
         """formatted data generator
         """
@@ -488,7 +492,7 @@ class FileSourceGenerator(FormattedGenerator):
         # TODO add choice for replacement for uniqueness
         generated_data = []
         
-        data_keys = parameters_list(format_used)
+        data_keys = [fname for _, fname, _, _ in Formatter().parse(format_used) if fname != ""]
 
         # TODO when FunStr will be done, it will return k formats and then we need to rewrite this function so it will fit this case. Such as get data for every single format.
         # Generating all values for the formatting.
