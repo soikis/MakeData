@@ -38,4 +38,7 @@ class NameGenerator(LocaleFileSourceGenerator):
     
 
     def __init__(self, *args, **kwargs):
-        super().__init__(generate_format_symbols=True, *args, **kwargs)
+        # If 'generate_format_symbols' is not defined, set it to True.
+        if kwargs.get("generate_format_symbols", False):
+            kwargs["generate_format_symbols"] = True
+        super().__init__(*args, **kwargs)

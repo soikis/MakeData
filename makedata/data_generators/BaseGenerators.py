@@ -8,6 +8,11 @@ from collections import Counter
 from .GeneratorExceptions import FormatError, EmptySourceError, NoDefaultFormatError, FormatNotFoundError
 from string import Formatter
 import os
+from re import compile as recompile, match
+
+
+# This compiled regex is used to clean parameter names in 'FormattedGenerator' formats, such as param[0]->param.
+FORMAT_KEY_CLEANING = recompile(r"[a-zA-Z_][\d\w]*")
 
 
 class GeneratorObject():
@@ -243,7 +248,7 @@ class FormattedGenerator(GeneratorObject):
         if "default" in self.formats:
             raise ValueError("Can't use the name 'default' in the formats dict, it is a reserved name.")
         
-        # Get the format symbols from the child class, to understand more, read about python inheritence and class attributes.
+        # Get the format symbols from the child class.
         self.formats_symbols = getattr(self, "formats_symbols", dict())
         if generate_format_symbols:
             self._create_formats_symbols(ignore_errors)
@@ -313,16 +318,16 @@ class FormattedGenerator(GeneratorObject):
             ('init_male_first_and_last', 'imfl'), ('last_and_female_first', 'lff'), 
             ('last_and_male_first', 'lmf'), ('male_first_and_last', 'mfl')]
         """
-        res = []
-        for form in self.formats.keys():
+        f_names = []
+        for frmt in self.formats.keys():
             try:
-                abrv_index = list(self.formats_symbols.values()).index(form)
+                abrv_index = list(self.formats_symbols.values()).index(frmt)
             except ValueError:
-                res.append((form, ""))
+                f_names.append((frmt, ""))
                 continue
-            abrv_key = list(self.formats_symbols.keys())[abrv_index]
-            res.append((form, abrv_key))
-        return sorted(res, key=lambda f: f[0])
+            symbol = list(self.formats_symbols.keys())[abrv_index]
+            f_names.append((frmt, symbol))
+        return sorted(f_names, key=lambda f: f[0])
 
     @property
     def formats_templates(self):
@@ -507,8 +512,8 @@ class FileSourceGenerator(FormattedGenerator):
         """
         # TODO add choice for replacement for uniqueness
         generated_data = []
-        
-        data_keys = [fname for _, fname, _, _ in Formatter().parse(format_used) if fname != ""]
+
+        data_keys = [match(FORMAT_KEY_CLEANING, fname)[0] for _, fname, _, _ in Formatter().parse(format_used) if fname != ""]
 
         # Generating all values for the formatting.
         all_dataset = []
